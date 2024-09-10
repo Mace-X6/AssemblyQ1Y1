@@ -1,11 +1,11 @@
 .data
-welcome: .asciz "-{ powerator }{ welcome }-\n\n"
+welcome: .asciz "\n    ____  ____ _       ____________  ___  __________  ____ \n   / __ \\/ __ \\ |     / / ____/ __ \\/   |/_  __/ __ \\/ __ \\\n  / /_/ / / / / | /| / / __/ / /_/ / /| | / / / / / / /_/ /\n / ____/ /_/ /| |/ |/ / /___/ _, _/ ___ |/ / / /_/ / _, _/ \n/_/    \\____/ |__/|__/_____/_/ |_/_/  |_/_/  \\____/_/ |_|  \n\n\n             _                       \n _ _ _  ___ | | ___  ___ ._ _ _  ___ \n| | | |/ ._>| |/ | '/ . \\| ' ' |/ ._>\n|__/_/ \\___.|_|\\_|_.\\___/|_|_|_|\\___.\n\n\n"
 prompt1: .asciz "please enter base (positive)\n"
 prompt2: .asciz "please enter exponent (positive)\n" 
 result: .asciz "the result is: %d\n"
 
-base: .space 128
-exp: .space 128
+base: .quad 0
+exp: .quad 0
 
 string_type: .asciz "%d"
 
