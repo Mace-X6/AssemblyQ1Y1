@@ -1,14 +1,15 @@
-.text
+.data
 welcome: .asciz "-{ powerator }{ welcome }-\n\n"
 prompt1: .asciz "please enter base (positive)\n"
 prompt2: .asciz "please enter exponent (positive)\n" 
 result: .asciz "the result is: %d\n"
 
-base: .asciz "%d"
-exp: .asciz "%d"
+base: .space 128
+exp: .space 128
 
-input_type: .asciz "%d"
+string_type: .asciz "%d"
 
+.text
 .global main
 
 main:   
@@ -20,16 +21,14 @@ main:
     # print welcome message 
     leaq welcome(%rip), %rdi
     call printf
-    #clear the stack
-    movq %rbp, %rsp
 
     # call input method
     call input
 
-    # %rdi -> base
-    # %rsi -> exponent
-    leaq base(%rip), %rdi
-    leaq exp(%rip), %rsi
+    # %r8 -> base
+    # %r9 -> exponent
+    movq base(%rip), %r8
+    movq exp(%rip), %r9
 
     call power
 
@@ -39,61 +38,69 @@ main:
     call end
 
 input:
+    pushq %rbp #WHAAAATTTTT
+    movq %rsp, %rbp
+
     #prompt for base
     leaq prompt1(%rip), %rdi
     call printf
-    #clear the stack
-    movq %rbp, %rsp
 
     #take input for base and store into base
-    leaq base(%rip), %rdi
-    leaq base(%rip), %rsi
+    movq $string_type, %rdi
+    lea base(%rip), %rsi
     call scanf
-    #clear the stack
-    movq %rbp, %rsp
 
-    #prompt for power
+    #prompt for exponent
     leaq prompt2(%rip), %rdi
     call printf
-    #clear the stack
-    movq %rbp, %rsp
 
     #take input for power and store into exp
-    leaq exp(%rip), %rdi
+    movq $string_type, %rdi
     leaq exp(%rip), %rsi
     call scanf
+
     #clear the stack
     movq %rbp, %rsp
-
+    popq %rbp
     ret
 
 output:
-    movq result(%rip), %rdi
+    pushq %rbp #WHAAAATTTTT
+    movq %rsp, %rbp
+
+    movq $result, %rdi
     movq %rax, %rsi
     call printf
+
     #clear the stack
     movq %rbp, %rsp
+    popq %rbp
+
     ret
 
-power: # multiplies %rdi by itself %rsi times and stores it back in %rdi
-    movq %rdi, %rax
-    subq $1, %rsi   # subtract one from the counter because well it just works out that way (trust me i checked)
+power: 
+    # multiplies output by base exponent times and stores it back in output
+    # %r8 -> base
+    # %r9 -> exponent
+
+    movq $1, %rax
     call power_loop
+
     ret
 
 power_loop:
-    # exponent -> %rsi
     # %rax is output,
-    # %rdi is base
+    # %r8 is base
+    # %r9 is exponent
 
-    # for each loop do output = output * base
-    imulq %rdi, %rax 
+    # for each loop do output = base * ouput
+    imulq %r8, %rax 
 
     # subtract one from counter(which is exponent)
-    subq $1, %rsi
+    subq $1, %r9
 
     # continue if counter > 0, else end loop
-    testq %rsi, %rsi
+    testq %r9, %r9
     jg power_loop
 
 loop_end:
@@ -103,4 +110,7 @@ end:
     # epilogue
     movq %rbp, %rsp
     popq %rbp
+
+    # je moet 0 in rdi zetten anders gaat hij weer lopen janken dat het geen goeie exit is
+    movq $0, %rdi
     call exit
