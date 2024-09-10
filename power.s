@@ -83,9 +83,15 @@ power:
     # %r8 -> base
     # %r9 -> exponent
 
-    movq $1, %rax
-    call power_loop
+    movq $1, %rax #put 1 into rax
 
+    cmpq $0, %r9 # check if exponent is 0
+    jne calculate # if not zero -> calculate, otherwise just return 1 (which is already in rax)
+
+    ret
+
+calculate:
+    call power_loop
     ret
 
 power_loop:
