@@ -86,12 +86,8 @@ power:
     movq $1, %rax #put 1 into rax
 
     cmpq $0, %r9 # check if exponent is 0
-    jne calculate # if not zero -> calculate, otherwise just return 1 (which is already in rax)
-
-    ret
-
-calculate:
-    call power_loop
+    jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in rax)
+    
     ret
 
 power_loop:
@@ -99,15 +95,16 @@ power_loop:
     # %r8 is base
     # %r9 is exponent
 
+    # continue if counter > 0, else end loop
+    cmpq $0, %r9
+
     # for each loop do output = base * ouput
     imulq %r8, %rax 
 
     # subtract one from counter(which is exponent)
     subq $1, %r9
 
-    # continue if counter > 0, else end loop
-    testq %r9, %r9
-    jg power_loop
+    jg power_loop # reference to compare on line 99 
 
 loop_end:
     ret
