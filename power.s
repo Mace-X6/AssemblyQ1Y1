@@ -2,12 +2,12 @@
 welcome: .asciz "\n    ____  ____ _       ____________  ___  __________  ____ \n   / __ \\/ __ \\ |     / / ____/ __ \\/   |/_  __/ __ \\/ __ \\\n  / /_/ / / / / | /| / / __/ / /_/ / /| | / / / / / / /_/ /\n / ____/ /_/ /| |/ |/ / /___/ _, _/ ___ |/ / / /_/ / _, _/ \n/_/    \\____/ |__/|__/_____/_/ |_/_/  |_/_/  \\____/_/ |_|  \n\n\n             _                       \n _ _ _  ___ | | ___  ___ ._ _ _  ___ \n| | | |/ ._>| |/ | '/ . \\| ' ' |/ ._>\n|__/_/ \\___.|_|\\_|_.\\___/|_|_|_|\\___.\n\n\n"
 prompt1: .asciz "please enter base (positive)\n"
 prompt2: .asciz "please enter exponent (positive)\n" 
-result: .asciz "the result is: %d\n"
+result: .asciz "the result is: %ld\n"
 
 base: .quad 0
 exp: .quad 0
 
-string_type: .asciz "%d"
+string_type: .asciz "%ld"
 
 .text
 .global main
@@ -19,7 +19,7 @@ main:
     movq $0, %rax 
     
     # print welcome message 
-    leaq welcome(%rip), %rdi
+    movq $welcome, %rdi
     call printf
 
     # call input method
@@ -46,8 +46,9 @@ input:
     call printf
 
     #take input for base and store into base
+    subq $16, %rsp
     movq $string_type, %rdi
-    lea base(%rip), %rsi
+    leaq -16(%rsp), %rsi
     call scanf
 
     #prompt for exponent
