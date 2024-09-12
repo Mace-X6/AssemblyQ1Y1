@@ -48,11 +48,12 @@ main:
  
     call power
 
-    # the output is now stored in %r8
+    # the output is now stored in %rax
     
     # print the output
     movq $result, %rdi
-    movq %r8, %rsi
+    movq %rax, %rsi
+    movq $0, %rax
     call printf
 
     # epilogue
@@ -69,16 +70,16 @@ power:
 
     # multiplies output by base, exponent times and stores it back in output
 
-    movq $1, %r8 #put 1 into r8
+    movq $1, %rax #put 1 into rax
 
     cmpq $0, %r13 # check if exponent is 0
-    jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in r8)
+    jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in rax)
     
     ret
 
 
 power_loop:
-    # %r8 -> output,
+    # %rax -> output,
     # %r12 -> base
     # %r13 -> exponent
 
@@ -86,7 +87,7 @@ power_loop:
     cmpq $0, %r13
 
     # for each loop do output = base * ouput
-    imulq %r12, %r8 
+    imulq %r12, %rax 
 
     # subtract one from counter(which is exponent)
     subq $1, %r13
