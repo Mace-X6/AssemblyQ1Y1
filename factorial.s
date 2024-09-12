@@ -10,72 +10,50 @@ input_type: .asciz "%ld"
 .text
 .global main
 
-main:   
-    #prologue
-    pushq %rbp
-    movq %rsp, %rbp
-    movq $0, %rax 
-    
-    # print welcome message 
-    movq $welcome, %rdi
-    call printf
+main:
+    pushq %rbp              #prologue psuh the basepointer on top of stack
+    movq %rsp, %rbp         # push stack pointer naar de basepointer
 
-    #prompt for base
-    movq $prompt, %rdi
-    call printf
+    movq $welcome, %rdi     # kopieer welcome string op rdi
+    call printf             # print de welkom string
 
-    #take input for base and store into %r12
-    movq $0, %rax 
-    subq $16, %rsp              # free up space on the stack
-    movq $input_type, %rdi
-    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
-    call scanf                  # scanf writes to loaded adress & rsi
-    movq %rsi, %r12             # move the value stored by scanf into r12
- 
-    call factorial
+    movq $0, %rax           # free up space on rax
+    subq $32, %rsp          # free up space op de stack
+    movq $input_type, %rdi  # move inpute type string in rsi
+    leaq -16(%rbp), %rsi    # adress the free space in rsi
+    call scanf              # put input in -16(rsp)
+    movq -16(%rbp), %rsi    # copy input in rsi
 
-    # the output is now stored in %r8
-    
-    # print the output
-    movq $result, %rdi
-    movq %r8, %rsi
-    call printf
+    call factorial          # call the start of the loop
 
-    # epilogue
-    movq %rbp, %rsp
-    popq %rbp
+    movq $result, %rdi      # move string result in rdi
+    movq %rdx, %rsi         # move result in rsi
+    call printf             # print result 
 
-    # je moet 0 in rdi zetten anders gaat hij weer lopen janken dat het geen goeie exit is
-    movq $0, %rdi
+    movq %rbp, %rsp         # epilogue, move the base pointer to the stack pointer
+    popq %rbp               # delete information on the stack
+
+    movq $0, %rdi           # exit code
     call exit
 
+
+
 factorial:
-    # %r12 -> base
-    # %r8  -> output
 
-    # multiplies output by base--, base times and stores it back in output
-    
-    movq $1, %r8        # move 1 to output
-
-    cmpq $0, %r12 # check if base is 0
-    jne factorial_loop # if not zero -> calculate, otherwise just return 1 (which is already in r8)
-    
-    ret
+    movq $1, %rdx           # move 1 on rdx (output)
+    cmpq $0, %rsi           # compare input with 0 
+    jne factorial_loop      # if rdx is not zero jump to factorial loop else return rdx wich is 1
 
 
 factorial_loop:
-    # %r8 is output,
-    # %r12 is base
-
-    # for each loop do output = base * output
-    imulq %r12, %r8 
-
-    # subtract one from base
-    subq $1, %r12
-
-    # continue if counter(== base) > 0, else end loop
-    cmpq $0, %r12
-    jg factorial_loop
+    
+    imulq %rsi, %rdx        # calculate the multiplication of base and output
+    subq $1, %rsi           # subtract 1 from input
+    cmpq $0, %rsi           # compare base with zero
+    jg factorial_loop       # jump if rcx is bigger than 0
 
 loop_end:
-    ret 
+    ret
+
+
+
