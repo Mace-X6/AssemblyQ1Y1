@@ -34,11 +34,12 @@ main:
  
     call factorial
 
-    # the output is now stored in %r8
+    # the output is now stored in %rax
     
     # print the output
     movq $result, %rdi
-    movq %r8, %rsi
+    movq %rax, %rsi
+    movq $0, %rax
     call printf
 
     # epilogue
@@ -51,24 +52,25 @@ main:
 
 factorial:
     # %r12 -> base
-    # %r8  -> output
+    # %rax  -> output
 
     # multiplies output by base--, base times and stores it back in output
     
-    movq $1, %r8        # move 1 to output
+    movq $1, %rax            # move 1 to output
 
-    cmpq $0, %r12 # check if base is 0
-    jne factorial_loop # if not zero -> calculate, otherwise just return 1 (which is already in r8)
+    cmpq $0, %r12           # check if base is 0
+    jne factorial_loop      # if not zero -> calculate, otherwise just return 1 (which is already in r8)
     
+
     ret
 
 
 factorial_loop:
-    # %r8 is output,
+    # %rax is output,
     # %r12 is base
 
     # for each loop do output = base * output
-    imulq %r12, %r8 
+    imulq %r12, %rax 
 
     # subtract one from base
     subq $1, %r12
