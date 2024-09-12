@@ -45,91 +45,16 @@ main:
     leaq -16(%rsp), %rsi        # load adress of freed space into rsi
     call scanf                  # scanf writes to loaded adress & rsi
     movq %rsi, %r13             # move the value stored by scanf into r13
-
+ 
     call power
 
-    # the output is now stored in %rax
-    call output
-
-    call end
-
-input:
-    pushq %rbp #WHAAAATTTTT
-    movq %rsp, %rbp
-
-    #prompt for base
-    movq $prompt1, %rdi
-    call printf
-
-    #take input for base and store into %r12
-    subq $16, %rsp              # free up space on the stack
-    movq $input_type, %rdi
-    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
-    call scanf                  # scanf writes to loaded adress
-    popq %r12
-
-    #prompt for exponent
-    movq $prompt2, %rdi
-    call printf
-
-    #take input for power and store into %r13
-    subq $16, %rsp              # free up space on the stack
-    movq $input_type, %rdi
-    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
-    call scanf                  # scanf writes to loaded adress
-    popq %r13
-
-    #clear the stack
-    movq %rbp, %rsp
-    popq %rbp
-    ret
-
-output:
-    pushq %rbp #WHAAAATTTTT
-    movq %rsp, %rbp
-
-    movq $result, %rdi
-    movq %rax, %rsi
-    call printf
-
-    #clear the stack
-    movq %rbp, %rsp
-    popq %rbp
-
-    ret
-
-power: 
-    # multiplies output by base exponent times and stores it back in output
-    # %r12 -> base
-    # %r13 -> exponent
-
-    movq $1, %rax #put 1 into rax
-
-    cmpq $0, %r13 # check if exponent is 0
-    jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in rax)
+    # the output is now stored in %r8
     
-    ret
+    # print the output
+    movq $result, %rdi
+    movq %r8, %rsi
+    call printf
 
-power_loop:
-    # %rax is output,
-    # %r12 is base
-    # %r13 is exponent
-
-    # continue if counter > 0, else end loop
-    cmpq $0, %r13
-
-    # for each loop do output = base * ouput
-    imulq %r12, %rax 
-
-    # subtract one from counter(which is exponent)
-    subq $1, %r13
-
-    jg power_loop # reference to compare on line 99 
-
-loop_end:
-    ret
-
-end:
     # epilogue
     movq %rbp, %rsp
     popq %rbp
@@ -137,3 +62,36 @@ end:
     # je moet 0 in rdi zetten anders gaat hij weer lopen janken dat het geen goeie exit is
     movq $0, %rdi
     call exit
+
+power:
+    # %r12 -> base
+    # %r13 -> exponent
+
+    # multiplies output by base, exponent times and stores it back in output
+
+    movq $1, %r8 #put 1 into r8
+
+    cmpq $0, %r13 # check if exponent is 0
+    jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in r8)
+    
+    ret
+
+
+power_loop:
+    # %r8 -> output,
+    # %r12 -> base
+    # %r13 -> exponent
+
+    # continue if counter > 0, else end loop
+    cmpq $0, %r13
+
+    # for each loop do output = base * ouput
+    imulq %r12, %r8 
+
+    # subtract one from counter(which is exponent)
+    subq $1, %r13
+
+    jg power_loop # checks the compare on line 99 
+
+loop_end:
+    ret 
