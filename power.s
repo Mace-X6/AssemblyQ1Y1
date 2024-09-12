@@ -7,7 +7,7 @@ result: .asciz "the result is: %ld\n"
 base: .quad 0
 exp: .quad 0
 
-string_type: .asciz "%ld"
+input_type: .asciz "%ld"
 
 .text
 .global main
@@ -22,13 +22,29 @@ main:
     movq $welcome, %rdi
     call printf
 
-    # call input method
-    call input
+    #prompt for base
+    movq $prompt1, %rdi
+    call printf
 
-    # %r8 -> base
-    # %r9 -> exponent
-    movq base(%rip), %r8
-    movq exp(%rip), %r9
+    #take input for base and store into %r12
+    movq $0, %rax 
+    subq $16, %rsp              # free up space on the stack
+    movq $input_type, %rdi
+    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
+    call scanf                  # scanf writes to loaded adress & rsi
+    movq %rsi, %r12             # move the value stored by scanf into r12
+
+    #prompt for exponent
+    movq $prompt2, %rdi
+    call printf
+
+    #take input for power and store into %r13
+    movq $0, %rax 
+    subq $16, %rsp              # free up space on the stack
+    movq $input_type, %rdi
+    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
+    call scanf                  # scanf writes to loaded adress & rsi
+    movq %rsi, %r13             # move the value stored by scanf into r13
 
     call power
 
@@ -42,23 +58,26 @@ input:
     movq %rsp, %rbp
 
     #prompt for base
-    leaq prompt1(%rip), %rdi
+    movq $prompt1, %rdi
     call printf
 
-    #take input for base and store into base
-    subq $16, %rsp
-    movq $string_type, %rdi
-    leaq -16(%rsp), %rsi
-    call scanf
+    #take input for base and store into %r12
+    subq $16, %rsp              # free up space on the stack
+    movq $input_type, %rdi
+    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
+    call scanf                  # scanf writes to loaded adress
+    popq %r12
 
     #prompt for exponent
-    leaq prompt2(%rip), %rdi
+    movq $prompt2, %rdi
     call printf
 
-    #take input for power and store into exp
-    movq $string_type, %rdi
-    leaq exp(%rip), %rsi
-    call scanf
+    #take input for power and store into %r13
+    subq $16, %rsp              # free up space on the stack
+    movq $input_type, %rdi
+    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
+    call scanf                  # scanf writes to loaded adress
+    popq %r13
 
     #clear the stack
     movq %rbp, %rsp
@@ -81,29 +100,29 @@ output:
 
 power: 
     # multiplies output by base exponent times and stores it back in output
-    # %r8 -> base
-    # %r9 -> exponent
+    # %r12 -> base
+    # %r13 -> exponent
 
     movq $1, %rax #put 1 into rax
 
-    cmpq $0, %r9 # check if exponent is 0
+    cmpq $0, %r13 # check if exponent is 0
     jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in rax)
     
     ret
 
 power_loop:
     # %rax is output,
-    # %r8 is base
-    # %r9 is exponent
+    # %r12 is base
+    # %r13 is exponent
 
     # continue if counter > 0, else end loop
-    cmpq $0, %r9
+    cmpq $0, %r13
 
     # for each loop do output = base * ouput
-    imulq %r8, %rax 
+    imulq %r12, %rax 
 
     # subtract one from counter(which is exponent)
-    subq $1, %r9
+    subq $1, %r13
 
     jg power_loop # reference to compare on line 99 
 
