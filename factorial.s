@@ -22,13 +22,17 @@ main:
     movq $input_type, %rdi  # move inpute type string in rsi
     leaq -16(%rbp), %rsi    # adress the free space in rsi
     call scanf              # put input in -16(rsp)
-    movq -16(%rbp), %rsi    # copy input in rsi
+    movq -16(%rbp), %rdi    # copy input in rsi
 
     call factorial          # call the start of the loop
+
+    movq %rax, %rbx         # store output in rbx because printf is fucking with my shit
 
     movq $result, %rdi      # move string result in rdi
     movq %rax, %rsi         # move result in rsi
     call printf             # print result 
+
+    movq %rbx, %rax         # restore output to rax 
 
     movq %rbp, %rsp         # epilogue, move the base pointer to the stack pointer
     popq %rbp               # delete information on the stack
@@ -41,15 +45,16 @@ main:
 factorial:
 
     movq $1, %rax           # move 1 on rdx (output)
-    cmpq $0, %rsi           # compare input with 0 
+    cmpq $0, %rdi           # compare input with 0 
     jne factorial_loop      # if rdx is not zero jump to factorial loop else return rdx wich is 1
 
+    ret
 
 factorial_loop:
     
-    imulq %rsi, %rax        # calculate the multiplication of base and output
-    subq $1, %rsi           # subtract 1 from input
-    cmpq $0, %rsi           # compare base with zero
+    imulq %rdi, %rax        # calculate the multiplication of base and output
+    subq $1, %rdi           # subtract 1 from input
+    cmpq $0, %rdi           # compare base with zero
     jg factorial_loop       # jump if rsi is bigger than 0
 
 loop_end:
