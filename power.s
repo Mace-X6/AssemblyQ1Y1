@@ -46,7 +46,7 @@ main:
     call scanf                  # scanf writes to loaded adress & rsi
     movq %rsi, %r13             # move the value stored by scanf into r13
  
-    call power
+    call pow
 
     # the output is now stored in %rax
     
@@ -64,7 +64,12 @@ main:
     movq $0, %rdi
     call exit
 
-power:
+pow:
+    #prologue
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %r13          # store value of r13 because it is callee-saved
+    
     # %r12 -> base
     # %r13 -> exponent
 
@@ -75,6 +80,11 @@ power:
     cmpq $0, %r13 # check if exponent is 0
     jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in rax)
     
+    popq %r13           # restore the value of r13
+    
+    # epilogue
+    movq %rbp, %rsp
+    popq %rbp
     ret
 
 
@@ -95,4 +105,10 @@ power_loop:
     jg power_loop # checks the compare on line 99 
 
 loop_end:
+    popq %r13           # restore the value of r13
+    
+    # epilogue
+    movq %rbp, %rsp
+    popq %rbp
+
     ret 
