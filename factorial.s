@@ -40,25 +40,28 @@ main:
     movq $0, %rdi           # exit code
     call exit
 
-
-
 factorial:
+    pushq %rbp               # prologue psuh the basepointer on top of stack
+    movq %rsp, %rbp          # push stack pointer naar de basepointer
 
-    movq $1, %rax           # move 1 on rdx (output)
-    cmpq $0, %rdi           # compare input with 0 
-    jne factorial_loop      # if rdx is not zero jump to factorial loop else return rdx wich is 1
+    pushq %rdi               # store n to stack
+    subq $1, %rdi            # pass n - 1 to self
 
-    ret
+    cmpq $1, %rdi            # if n == 1 -> return
+    jl return
 
-factorial_loop:
+    call factorial          # otherwise calculate n - 1
+
+    popq %rcx               # do calculations
+    imulq %rcx, %rax
     
-    imulq %rdi, %rax        # calculate the multiplication of base and output
-    subq $1, %rdi           # subtract 1 from input
-    cmpq $0, %rdi           # compare base with zero
-    jg factorial_loop       # jump if rsi is bigger than 0
+return:
+    movq %rbp, %rsp         # epilogue, move the base pointer to the stack pointer
+    popq %rbp               # delete information on the stack
 
-loop_end:
-    ret
+    ret 
+
+
 
 
 
