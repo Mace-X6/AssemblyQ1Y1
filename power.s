@@ -42,6 +42,9 @@ main:
     leaq -16(%rbp), %rsi        # load adress of freed space into rsi
     call scanf                  # scanf writes to loaded adress & rsi
     movq -16(%rbp), %r13        # move the value stored by scanf into r13
+
+    movq %r12, %rdi
+    movq %r13, %rsi
  
     call pow
 
@@ -65,19 +68,16 @@ pow:
     #prologue
     pushq %rbp
     movq %rsp, %rbp
-    pushq %r13          # store value of r13 because it is callee-saved
     
-    # %r12 -> base
-    # %r13 -> exponent
+    # %rdi -> base
+    # %rsi -> exponent
 
     # multiplies output by base, exponent times and stores it back in output
 
-    movq $1, %rax #put 1 into rax
+    movq $1, %rax               # put 1 into rax
 
-    cmpq $0, %r13 # check if exponent is 0
-    jne power_loop # if not zero -> calculate, otherwise just return 1 (which is already in rax)
-    
-    popq %r13           # restore the value of r13
+    cmpq $0, %rsi               # check if exponent is 0
+    jne power_loop              # if not zero -> calculate, otherwise just return 1 (which is already in rax)
     
     # epilogue
     movq %rbp, %rsp
@@ -87,22 +87,21 @@ pow:
 
 power_loop:
     # %rax -> output,
-    # %r12 -> base
-    # %r13 -> exponent
+    # %rdi -> base
+    # %rsi -> exponent
 
     # continue if counter > 0, else end loop
-    cmpq $0, %r13
+    cmpq $0, %rsi
 
     # for each loop do output = base * ouput
-    imulq %r12, %rax 
+    imulq %rdi, %rax 
 
     # subtract one from counter(which is exponent)
-    subq $1, %r13
+    subq $1, %rsi
 
     jg power_loop # checks the compare on line 99 
 
 loop_end:
-    popq %r13           # restore the value of r13
     
     # epilogue
     movq %rbp, %rsp
