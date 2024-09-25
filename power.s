@@ -4,9 +4,6 @@ prompt1: .asciz "please enter base (positive)\n"
 prompt2: .asciz "please enter exponent (positive)\n" 
 result: .asciz "the result is: %ld\n"
 
-base: .quad 0
-exp: .quad 0
-
 input_type: .asciz "%ld"
 
 .text
@@ -30,9 +27,9 @@ main:
     movq $0, %rax 
     subq $16, %rsp              # free up space on the stack
     movq $input_type, %rdi
-    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
+    leaq -16(%rbp), %rsi        # load adress of freed space into rsi
     call scanf                  # scanf writes to loaded adress & rsi
-    movq %rsi, %r12             # move the value stored by scanf into r12
+    movq -16(%rbp), %r12        # move the value stored by scanf into r12
 
     #prompt for exponent
     movq $prompt2, %rdi
@@ -42,9 +39,9 @@ main:
     movq $0, %rax 
     subq $16, %rsp              # free up space on the stack
     movq $input_type, %rdi
-    leaq -16(%rsp), %rsi        # load adress of freed space into rsi
+    leaq -16(%rbp), %rsi        # load adress of freed space into rsi
     call scanf                  # scanf writes to loaded adress & rsi
-    movq %rsi, %r13             # move the value stored by scanf into r13
+    movq -16(%rbp), %r13        # move the value stored by scanf into r13
  
     call pow
 
