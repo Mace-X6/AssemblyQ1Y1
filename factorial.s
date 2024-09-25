@@ -1,7 +1,7 @@
 .data
 welcome: .asciz "\n-=-{ factorializer }-+-{ welcome }-=-\n\n"
 prompt: .asciz "please enter factorial base (positive)\n"
-result: .asciz "the result is: %ld\n"
+result: .asciz "%ld"
 
 base: .quad 0
 
@@ -26,13 +26,15 @@ main:
 
     call factorial          # call the start of the loop
 
-    movq %rax, %rbx         # store output in rbx because printf is fucking with my shit
+    pushq %rax              # store output in stack 
+    pushq %rax              # (double push to retain stack alignment)
 
     movq $result, %rdi      # move string result in rdi
     movq %rax, %rsi         # move result in rsi
     call printf             # print result 
 
-    movq %rbx, %rax         # restore output to rax 
+    popq %rax               # restore output to rax 
+    popq %rax               # (double pop to account for double push) 
 
     movq %rbp, %rsp         # epilogue, move the base pointer to the stack pointer
     popq %rbp               # delete information on the stack
@@ -45,21 +47,33 @@ factorial:
     movq %rsp, %rbp          # push stack pointer naar de basepointer
 
     pushq %rdi               # store n to stack
+    pushq %rdi               # store n to stack
     subq $1, %rdi            # pass n - 1 to self
 
     cmpq $1, %rdi            # if n == 1 -> return
-    jl return
+    jl base_case
 
     call factorial          # otherwise calculate n - 1
 
     popq %rcx               # do calculations
+    popq %rcx               
     imulq %rcx, %rax
     
-return:
     movq %rbp, %rsp         # epilogue, move the base pointer to the stack pointer
     popq %rbp               # delete information on the stack
 
     ret 
+
+base_case:
+    movq $1, %rax
+
+    movq %rbp, %rsp         # epilogue, move the base pointer to the stack pointer
+    popq %rbp               # delete information on the stack
+
+    ret 
+
+
+    
 
 
 
