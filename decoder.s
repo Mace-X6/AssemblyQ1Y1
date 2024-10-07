@@ -2,7 +2,7 @@
 
 print_format: .asciz "%c"
 
-.include "abc_sorted.s"
+.include "final.s"
 
 .global main
 
