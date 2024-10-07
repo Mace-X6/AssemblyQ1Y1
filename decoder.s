@@ -1,5 +1,7 @@
 .text
 
+print_format: .asciz "%c"
+
 .include "helloWorld.s"
 
 .global main
@@ -20,8 +22,83 @@ decode:
 	pushq	%rbp 			# push the base pointer (and align the stack)
 	movq	%rsp, %rbp		# copy stack pointer value to base pointer
 
-	# your code goes here
+	movq 	$1, %rsi		# make sure rsi contains 1
+	
+	call decoder
 
+	# epilogue
+	movq	%rbp, %rsp		# clear local variables from stack
+	popq	%rbp			# restore base pointer location 
+	ret
+decoder:
+	# prologue
+	pushq	%rbp 			# push the base pointer (and align the stack)
+	movq	%rsp, %rbp		# copy stack pointer value to base pointer
+
+	#rdi contains the message
+	pushq %rdi				# store %rdi on stack
+	pushq %rdi				# twice for alignment
+
+	# if
+	cmp $1, %rsi 
+	je base_case			# if rsi contains 1 -> this is the basecase so jump to basecase
+
+	# if
+	cmp $0, %rsi 
+	je stop_case			# if rsi contains 0 -> this is the final case so jump to end
+
+	# else
+	addq %rsi, %rdi			# add the previously determined offset, or if it is the first iteration, add 0
+
+base_case:
+	movq (%rdi), %rcx		# store the content at address %rdi in %rcx
+
+	movq $0, %r8			# clear r8
+	movb %cl, %r8b 			# r8 contains current char
+
+	shr $8, %rcx			# shift rcx towards lsb so %cl is set on repetitions
+
+	movq $0, %r9
+	movb %cl, %r9b			# r9 contains current repetitions
+
+print_loop:
+	# prologue
+	pushq	%rbp 			# push the base pointer (and align the stack)
+	movq	%rsp, %rbp		# copy stack pointer value to base pointer
+
+	subq $1, %r9			# subtract from loop condition
+
+	movq $print_format, %rdi# pass format to printf
+	movq %r8, %rsi 			# pass char to be printed
+	movq $0, %rax 			# buh buh buh
+	call printf				# print the char
+
+	cmp $1, %r9
+	
+	# epilogue
+	movq	%rbp, %rsp		# clear local variables from stack
+	popq	%rbp			# restore base pointer location 
+
+	# if
+	jle print_loop			# if greater or equal to 1, do loop again, otherwise just continue
+
+	# else
+	# next up: deal with address
+
+	shr $8, %rcx			# ecx now contains next index
+	movq $0, %rsi			# clear rsi
+	movl %ecx, %esi			# put next index in rsi
+
+	popq %rdi				# restore %rdi
+	popq %rsi				# also pop the address into rsi
+
+	imulq $8, %rsi			# next address is index * 8
+	#rdi now contains base address
+	#rsi contains the offset to next address
+
+	call decoder
+
+stop_case:
 	# epilogue
 	movq	%rbp, %rsp		# clear local variables from stack
 	popq	%rbp			# restore base pointer location 
