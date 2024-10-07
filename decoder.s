@@ -2,7 +2,7 @@
 
 print_format: .asciz "%c"
 
-.include "helloWorld.s"
+.include "abc_sorted.s"
 
 .global main
 
