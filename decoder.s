@@ -62,25 +62,28 @@ base_case:
 	movb %cl, %r9b			# r9 contains current repetitions
 
 print_loop:
-	# prologue
-	pushq	%rbp 			# push the base pointer (and align the stack)
-	movq	%rsp, %rbp		# copy stack pointer value to base pointer
-
 	subq $1, %r9			# subtract from loop condition
+
+	pushq	%r9				# save stuff
+	pushq	%r8				# more saving
+	pushq	%rcx
+	pushq	%rsi
+	
 
 	movq $print_format, %rdi# pass format to printf
 	movq %r8, %rsi 			# pass char to be printed
 	movq $0, %rax 			# buh buh buh
 	call printf				# print the char
 
+	popq %rsi
+	popq %rcx
+	popq %r8				# revert everything
+	popq %r9				#
+
 	cmp $1, %r9
-	
-	# epilogue
-	movq	%rbp, %rsp		# clear local variables from stack
-	popq	%rbp			# restore base pointer location 
 
 	# if
-	jle print_loop			# if greater or equal to 1, do loop again, otherwise just continue
+	jge print_loop			# if greater or equal to 1, do loop again, otherwise just continue
 
 	# else
 	# next up: deal with address
@@ -89,10 +92,14 @@ print_loop:
 	movq $0, %rsi			# clear rsi
 	movl %ecx, %esi			# put next index in rsi
 
-	popq %rdi				# restore %rdi
-	popq %rsi				# also pop the address into rsi
-
 	imulq $8, %rsi			# next address is index * 8
+	popq %rdi				# restore %rdi
+	popq %rdi				# 
+
+	# epilogue
+	movq	%rbp, %rsp		# clear local variables from stack
+	popq	%rbp			# restore base pointer location 
+
 	#rdi now contains base address
 	#rsi contains the offset to next address
 
