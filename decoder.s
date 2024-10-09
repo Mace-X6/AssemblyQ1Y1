@@ -35,11 +35,11 @@ loop:
 
 	shr $8, %rcx			# shift rcx towards lsb so %cl is set on repetitions
 
-	movq $0, %r9
+	movq $0, %r9			# clear all of r9
 	movb %cl, %r9b			# r9 contains current repetitions
 
-	push %rcx
-	push %rcx
+	push %rcx				# save rcx because printf is gonna fuck with it 
+	push %rcx				# push twice for alignment
 print_loop:
 	subq $1, %r9			# subtract from loop condition
 	pushq %r9				# save r9
@@ -53,15 +53,15 @@ print_loop:
 	popq %r8				# retrieve r8
 	popq %r9				# retrieve r9
 
-	cmp $1, %r9
+	cmp $1, %r9				# compare r9 to 1
 
 	# if
 	jge print_loop			# if greater or equal to 1, do loop again, otherwise just continue
 
 	# else
 	# next up: deal with address
-	popq %rcx
-	popq %rcx
+	popq %rcx				# restore rcx because the scanf monster has left
+	popq %rcx				# twice for alignment
 	shr $8, %rcx			# ecx now contains next index
 	movq $0, %rsi			# clear rsi
 	movl %ecx, %esi			# put next index in rsi
@@ -71,14 +71,14 @@ print_loop:
 	je return
 
 	popq %rdi				# restore %rdi
-	popq %rcx				# also copy rdi to rcx
+	popq %rcx				# also copy rdi to rcx (so rcx contains the base addr)
 
 	pushq %rdi				# save again
-	pushq %rdi
+	pushq %rdi				# alignment
 
 	imulq $8, %rsi			# next address is index * 8
-	addq %rsi, %rcx
-	jmp loop
+	addq %rsi, %rcx			# rcx contains the base addr, rsi contains the offset towards next offset
+	jmp loop				# rcx contains the addr of next code.
 
 return:
 	# epilogue
