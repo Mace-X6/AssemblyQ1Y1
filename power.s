@@ -14,6 +14,9 @@ main:
     pushq %rbp
     movq %rsp, %rbp
     movq $0, %rax 
+
+    pushq %r12
+    pushq %r13
     
     # print welcome message 
     movq $welcome, %rdi
@@ -55,6 +58,9 @@ main:
     movq %rax, %rsi
     movq $0, %rax
     call printf
+
+    popq %r13
+    popq %r12
 
     # epilogue
     movq %rbp, %rsp
