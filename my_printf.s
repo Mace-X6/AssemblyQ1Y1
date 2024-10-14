@@ -92,4 +92,66 @@ print_char:         # write a single char that is stored in the least significan
 #       rax -   an int (the amount of placeholders in the string)
 #
 arg_counter:        # run through the zero terminated string starting at the addr in rdi & return the number of placeholders in rax
+    #   prologue
+    pushq   %rbp
+    movq    %rsp,   %rbp
+    pushq   %r13                    # store callee saved registers
+    pushq   %r13                    # store callee saved registers
+
+    # r13 (or r13b) will hold the current byte being evaluated <current_char>
+    # rax will be the output and the placeholder_counter
+    # % = 37, d = 100, s = 115, u = 117
+    movq    $0,     %r13
+    movq    $0,     %rax
+    counter_loop:
+        movl    (%rdi),     %r13b
+
+        # if current_char == NUL ? jump END
+        cmp     %r13b,     $0
+        je      end_loop
+
+        # if current_char == % ? test next char
+        cmp     %r13b,     $37
+        je      test_byte_after_esc_char
+
+        # else increment and loop
+        addq    $1,     %rdi
+        jmp     counter_loop
+
+    test_byte_after_esc_char:
+        addq    $1,         %rdi    # increment current_char_index   
+
+        # if current_char == NUL ? jump END
+        cmp     %r13b,     $0
+        je      end_loop
+
+        # if current_char == d ? placeholder_counter ++ 
+        cmp     %r13b,     $100
+        je      increment_placeholder_counter
+
+        # if current_char == s ? placeholder_counter ++ 
+        cmp     %r13b,     $115
+        je      increment_placeholder_counter
+
+        # if current_char == u ? placeholder_counter ++ 
+        cmp     %r13b,     $117
+        je      increment_placeholder_counter
+
+        # else increment and loop
+        addq    $1,     %rdi
+        jmp     counter_loop
+
+    increment_placeholder_counter:
+        addq    $1,     %rax    # increment placeholder_counter
+        addq    $1,     %rdi    # increment current_char_index  
+        jmp     counter_loop
     
+    end_loop:
+
+    # return rax
+    popq    %r13                # restore callee saved regs
+    popq    %r13                # restore callee saved regs
+
+    movq    %rbp,   %rsp
+    popq    %rbp
+    ret
