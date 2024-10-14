@@ -25,15 +25,13 @@ main:
     pushq   %r15                    # save all callee saved registers, regardless of if they're used
 
     # RDI contains format string adress
+    pushq   %rdi                    # save rdi
+    call arg_counter
+    popq    %rdi                    # restore rdi
 
-    # RSI contains
+    # rax contains the number of arguments
 
 
-#    movq   $1,  %rax               syscall call param for: write
-#    movq   $1,  %rdi               syscall call param for: stdout
-#    movq   $msg,    %rsi           syscall call param for: content to be written
-#    movq   $len,    %rdx           syscall call param for: content length
-#    syscall                        execute syscall
 
     popq    %r15                    # restore all callee saved registers
     popq    %r15                    # restore all callee saved registers
@@ -56,6 +54,7 @@ main:
 #       rdi - contains single char in dl
 #
 print_char:         # write a single char that is stored in the least significant byte of rdi
+    
     #   prologue
     pushq   %rbp
     movq    %rsp,   %rbp
@@ -78,11 +77,7 @@ print_char:         # write a single char that is stored in the least significan
     popq    %rbx                    # restore callee saved reg
     popq    %rbx                    #
 
-    #   epilogue
-    movq    %rbp,   %rsp
-    popq    %rbp
-
-    ret                             # return
+    jmp     epilogue_and_return
 
 #   ARG_COUNTER
 #   @params
@@ -92,6 +87,7 @@ print_char:         # write a single char that is stored in the least significan
 #       rax -   an int (the amount of placeholders in the string)
 #
 arg_counter:        # run through the zero terminated string starting at the addr in rdi & return the number of placeholders in rax
+
     #   prologue
     pushq   %rbp
     movq    %rsp,   %rbp
@@ -152,6 +148,86 @@ arg_counter:        # run through the zero terminated string starting at the add
     popq    %r13                # restore callee saved regs
     popq    %r13                # restore callee saved regs
 
-    movq    %rbp,   %rsp
-    popq    %rbp
-    ret
+    jmp epilogue_and_return
+
+#   GET_ARGUMENT_N
+#   @params
+#       rdi -   number of argument to return
+#
+#   @return
+#       rax -   argument n
+#       rdi -   specifies if rax contains adress or direct value (1 | 0 respectively)
+#
+get_argument_n:
+    #   prologue
+    pushq   %rbp
+    movq    %rsp,   %rbp
+
+    # if argument_n == 0 ? jump return_RSI
+    cmp     %rdi,     $0
+    je      return_RSI
+
+    # if argument_n == 1 ? jump return_RDX
+    cmp     %rdi,     $1
+    je      return_RDX
+
+    # if argument_n == 2 ? jump return_RCX
+    cmp     %rdi,     $2
+    je      return_RCX
+
+    # if argument_n == 3 ? jump return_R8
+    cmp     %rdi,     $3
+    je      return_R8
+
+    # if argument_n == 4 ? jump return_R9
+    cmp     %rdi,     $4
+    je      return_R9
+
+    # if argument_n == 4 ? jump return_R9
+    jg
+
+    # if fall-through ? jump epilogue_and_return
+    jmp     epilogue_and_return
+
+    return_RSI:
+        # return RSI
+        movq    $0,     %rdi
+        movq    %rsi,   %rax
+        jmp     epilogue_and_return
+
+    return_RDX:
+        # return RDX
+        movq    $0,     %rdi
+        movq    %rdx,   %rax
+        jmp     epilogue_and_return
+
+    return_RCX:
+        # return RCX
+        movq    $0,     %rdi
+        movq    %rcx,   %rax
+        jmp     epilogue_and_return
+
+    return_R8:
+        # return R8
+        movq    $0,     %rdi
+        movq    %r8,    %rax
+        jmp     epilogue_and_return
+
+    return_R9:
+        # return R9
+        movq    $0,     %rdi
+        movq    %r9,    %rax
+        jmp     epilogue_and_return
+
+    
+    
+
+
+
+
+
+epilogue_and_return:
+    #   epilogue
+    movq    %rbp,   %rsp    # move SP back
+    popq    %rbp            # restore BP
+    ret                     # return
