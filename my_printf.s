@@ -5,17 +5,23 @@
 
 .text
 
-.global main
+.global my_printf
 
-main:
+my_printf:
             # how is this gonna work:
             # first run through the string to look at the amount of 
             # arguments the function will need to take. the first 5 of these arguments are
             # in RSI, RDX, RCX, R8, R9, BP + 16 * (n + 1)
     #   prologue
     pushq   %rbp
-    pushq   $8
     movq    %rsp,   %rbp
+
+    pushq   %r9                     # bp -8
+    pushq   %r8                     # bp -16
+    pushq   %rcx                    # bp -24
+    pushq   %rdx                    # bp -32
+    pushq   %rsi                    # bp -40
+    pushq   %rdi                    # bp -48
 
     pushq   %rbx                    # save all callee saved registers, regardless of if they're used
     pushq   %r12                    # save all callee saved registers, regardless of if they're used
@@ -25,15 +31,9 @@ main:
     pushq   %r15                    # save all callee saved registers, regardless of if they're used
 
     # RDI contains format string adress
-    pushq   %rdi                    # save rdi
-    call    arg_counter
-    popq    %rdi                    # restore rdi
-    
-    # rax contains the number of arguments
     # % = 37, d = 100, s = 115, u = 117
-    movq    %rbp,   %r12            # pass the basepointer in r12
-    movq    $0,     %r13
-    movq    $0,     %rax
+    movq    $0,     %r13            # will hold currentchar
+    movq    $0,     %r14            # will hold the number of arguments used
     print_loop:
         movl    (%rdi),     %r13b   # move next char to r13
 
@@ -43,34 +43,99 @@ main:
 
         # if current_char == % ? test next char
         cmp     %r13b,     $37
-        je      test_byte_after_esc_char
+        je      test_next_char
 
-        # else increment and loop
-        addq    $1,     %rdi
-        jmp     counter_loop
+        # else print increment and loop
+        pushq   %rdi                # save rdi 
+        pushq   %rdi                # twice to keep stack aligned
+        movq    $0,     %rdi        # clear rdi
+        movl    %r13b,  %dl         # move char to rdi
+        popq    %rdi                # restore rdi
+        popq    %rdi                # restore rdi
 
-    test_next_char:
-        addq    $1,         %rdi    # increment current_char_index   
+        addq    $16,     %rdi
+        jmp     print_loop
+
+    test_next_char:     # if this is jumped to, the prev char was %
+        addq    $16,         %rdi    # increment current_char_index   
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
-        jne      end_loop
+        je      end_loop
 
-        # if current_char == d ? placeholder_counter ++ 
+        # if current_char == d ? handle it : jump to not_d
         cmp     %r13b,     $100
-        jne      increment_placeholder_counter
+        jne      not_d
+            pushq   %rdi            # save rdi
+            pushq   %rax
 
-        # if current_char == s ? placeholder_counter ++ 
+            movq    %r14,   %rdi    # passing arg number to subroutine
+            
+            call get_argument_n
+            # rax contains address of string
+
+            addq    $1,     %r14    # next placeholder wild hold next arg.
+            movq    $0,     %rdi    # clear rdi
+            d_loop:
+                movl    (%rax),     %dl
+                # if current_char == NUL ? jump END
+                cmp     %dl,    $0
+                je      d_loop_end
+
+                # else print char increment and loop
+                call    print_char
+                addq    $1,     %rax
+                jmp     d_loop
+
+            d_loop_end:
+            popq    %rax
+            popq    %rdi
+
+
+        not_d:
+
+        # if current_char == s ? handle it : jump to not_s
         cmp     %r13b,     $115
-        jne      increment_placeholder_counter
+        jne      not_s
+        not_s:
+    
 
-        # if current_char == u ? placeholder_counter ++ 
+        # if current_char == u ? handle it : jump to not_u
         cmp     %r13b,     $117
-        jne      increment_placeholder_counter
+        jne      not_u
+        not_u:
 
-        # else increment and loop
-        addq    $1,     %rdi
-        jmp     counter_loop
+        # if current_char == % ? handle it : jump to not_percent
+        cmp     %r13b,     $37
+        jne      not_percent
+            # handling it:
+            pushq   %rdi                # save rdi 
+            pushq   %rdi                # twice to keep stack aligned
+            movq    $0,     %rdi        # clear rdi
+            movl    %r13b,  %dl         # move char to rdi
+            call    print_char          # print the char in dl
+            popq    %rdi                # restore rdi
+            popq    %rdi                # restore rdi
+            
+            addq    $16,     %rdi        # increment current_char_index
+            jmp     print_loop          # loop
+        not_percent:
+
+        # else print whatever format specifier and loop
+        pushq   %rdi                # save rdi 
+        pushq   %rdi                # twice to keep stack aligned
+        movq    $0,     %rdi        # clear rdi
+
+        movl    $37,  %dl           # move % to rdi
+        call    print_char          # print the char in dl
+
+        movl    %r13b,  %dl         # move char to rdi
+        call    print_char          # print the char in dl
+
+        popq    %rdi                # restore rdi
+        popq    %rdi                # restore rdi
+        addq    $16,     %rdi       # increment current char
+        jmp     print_loop
     
     end_loop:
 
@@ -86,7 +151,6 @@ main:
 
     #   epilogue
     movq    %rbp,   %rsp
-    popq    %rbp
     popq    %rbp
 
     movq    $60,    %rax            # exit call
@@ -127,7 +191,7 @@ print_char:         # write a single char that is stored in the least significan
 
 
 #
-#   ARG_COUNTER
+#   ARG_COUNTER (not used)
 #   @params
 #       rdi -   an adress pointing to the start of a zero terminated string
 #
@@ -163,7 +227,7 @@ arg_counter:        # run through the zero terminated string starting at the add
         jmp     counter_loop
 
     test_byte_after_esc_char:
-        addq    $1,         %rdi    # increment current_char_index   
+        addq    $16,        %rdi    # increment current_char_index   
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
@@ -182,12 +246,12 @@ arg_counter:        # run through the zero terminated string starting at the add
         je      increment_placeholder_counter
 
         # else increment and loop
-        addq    $1,     %rdi
+        addq    $16,     %rdi
         jmp     counter_loop
 
     increment_placeholder_counter:
         addq    $1,     %rax    # increment placeholder_counter
-        addq    $1,     %rdi    # increment current_char_index  
+        addq    $16,     %rdi    # increment current_char_index  
         jmp     counter_loop
     
     end_counter_loop:
@@ -202,19 +266,15 @@ arg_counter:        # run through the zero terminated string starting at the add
 #   GET_ARGUMENT_N
 #   @params
 #       rdi -   number of argument to return
-#       r12 -   BP of the main stack
 #
 #   @return
-#       rax -   argument n
-#       rdi -   specifies if rax contains adress or direct value (1 | 0 respectively)
+#       rax -   argument n (either a value or an address)
 #
 get_argument_n:     # return the nth argument of my_printf (if n > the number of given arguments it will return a random value)
     #   prologue
     pushq   %rbp
+    movq    %rbp,   %r8 # remember bp for later
     movq    %rsp,   %rbp
-
-    pushq   %r12        # store r12 (callee saved)
-    pushq   %r12
 
     # if argument_n == 0 ? jump return_RSI
     cmp     %rdi,     $0
@@ -237,55 +297,45 @@ get_argument_n:     # return the nth argument of my_printf (if n > the number of
     je      return_R9
 
     # if argument_n > 4 ? jump return_R9
-    jg      return_STACK_addr
+    jg      return_STACK_item
 
-    # if fall-through ? jump argument_getter_return
-    jmp     argument_getter_return
+    # if fall-through ? jump epilogue_and_return
+    jmp     epilogue_and_return
 
     return_RSI:
         # return RSI
-        movq    $0,     %rdi
-        movq    %rsi,   %rax
-        jmp     argument_getter_return
+        movq    -40(%r8),   %rax
+        jmp     epilogue_and_return
 
     return_RDX:
         # return RDX
-        movq    $0,     %rdi
-        movq    %rdx,   %rax
-        jmp     argument_getter_return
+        movq    -32(%r8),   %rax
+        jmp     epilogue_and_return
 
     return_RCX:
         # return RCX
-        movq    $0,     %rdi
-        movq    %rcx,   %rax
-        jmp     argument_getter_return
+        movq    -24(%r8),   %rax
+        jmp     epilogue_and_return
 
     return_R8:
         # return R8
-        movq    $0,     %rdi
-        movq    %r8,    %rax
-        jmp     argument_getter_return
+        movq    -16(%r8),    %rax
+        jmp     epilogue_and_return
 
     return_R9:
         # return R9
-        movq    $0,     %rdi
-        movq    %r9,    %rax
-        jmp     argument_getter_return
-
-    return_STACK_addr:
-        # return a stack address
-        addq    $16,    %r10    # move past the base pointer
-        subq    $4,     %rdi    # rdi now contains the index of the stack argument to get
-        imulq   $16,    %rdi    # calculate offset
-        addq    %rdi,   %r10    # calculate adress
-        movq    %r10,   %rax    # return address
-        jmp     argument_getter_return
-    
-
-    argument_getter_return:
-        popq    %r12            # restore callee saved regs and return
-        popq    %r12
+        movq    -8(%r8),    %rax
         jmp     epilogue_and_return
+
+    return_STACK_item:
+        # return a stack address
+        addq    $16,    %r8     # step past return addr and saved bp
+        subq    $3,     %rdi    # rdi is now equal to which item needs to be taken from the stack (1 indexed)
+        imulq   $16,    %rdi    # calculate the offset this equates to
+        movq    (%r8,   %rdi),  %rax    # move the item to rax
+
+        jmp     epilogue_and_return
+    
 # as a shorthand to jump to
 epilogue_and_return:
     #   epilogue
