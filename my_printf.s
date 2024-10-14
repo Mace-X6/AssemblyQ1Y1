@@ -32,10 +32,10 @@ my_printf:
 
     # RDI contains format string adress
     # % = 37, d = 100, s = 115, u = 117
-    movq    $0,     %r13            # will hold currentchar
-    movq    $0,     %r14            # will hold the number of arguments used
+    xor     %r13,     %r13            # will hold currentchar
+    xor     %r14,     %r14            # will hold the number of arguments used
     print_loop:
-        movl    (%rdi),     %r13b   # move next char to r13
+        movq    (%rdi),     %r13   # move next char to r13
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
@@ -48,16 +48,16 @@ my_printf:
         # else print increment and loop
         pushq   %rdi                # save rdi 
         pushq   %rdi                # twice to keep stack aligned
-        movq    $0,     %rdi        # clear rdi
-        movl    %r13b,  %dl         # move char to rdi
+        xor     %rdi,   %rdi        # clear rdi
+        movb    %r13b,  %dl         # move char to rdi
         popq    %rdi                # restore rdi
         popq    %rdi                # restore rdi
 
-        addq    $16,     %rdi
+        inc     %rdi                # increment char
         jmp     print_loop
 
     test_next_char:     # if this is jumped to, the prev char was %
-        addq    $16,         %rdi    # increment current_char_index   
+        inc     %rdi    # increment current_char_index   
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
@@ -75,9 +75,9 @@ my_printf:
             # rax contains address of string
 
             addq    $1,     %r14    # next placeholder wild hold next arg.
-            movq    $0,     %rdi    # clear rdi
+            xor     %rdi,   %rdi    # clear rdi
             d_loop:
-                movl    (%rax),     %dl
+                movq    (%rax),     %rdx
                 # if current_char == NUL ? jump END
                 cmp     %dl,    $0
                 je      d_loop_end
@@ -88,10 +88,12 @@ my_printf:
                 jmp     d_loop
 
             d_loop_end:
-            popq    %rax
-            popq    %rdi
-
-
+            popq    %rax            # restore values 
+            popq    %rdi            # restore values
+            inc     %rdi            # increment char
+            inc     %r14            # remeber the number of arguments we're on
+            jmp     print_loop      # loop
+        
         not_d:
 
         # if current_char == s ? handle it : jump to not_s
@@ -111,30 +113,30 @@ my_printf:
             # handling it:
             pushq   %rdi                # save rdi 
             pushq   %rdi                # twice to keep stack aligned
-            movq    $0,     %rdi        # clear rdi
-            movl    %r13b,  %dl         # move char to rdi
+            xor     %rdi,   %rdi       # clear rdi
+            movb    %r13b,  %dl         # move char to rdi
             call    print_char          # print the char in dl
             popq    %rdi                # restore rdi
             popq    %rdi                # restore rdi
             
-            addq    $16,     %rdi        # increment current_char_index
+            inc     %rdi                # increment current_char_index
             jmp     print_loop          # loop
         not_percent:
 
         # else print whatever format specifier and loop
         pushq   %rdi                # save rdi 
         pushq   %rdi                # twice to keep stack aligned
-        movq    $0,     %rdi        # clear rdi
+        xor     %rdi,   %rdi        # clear rdi
 
-        movl    $37,  %dl           # move % to rdi
+        movb    $37,  %dl           # move % to rdi
         call    print_char          # print the char in dl
 
-        movl    %r13b,  %dl         # move char to rdi
+        movb    %r13b,  %dl         # move char to rdi
         call    print_char          # print the char in dl
 
         popq    %rdi                # restore rdi
         popq    %rdi                # restore rdi
-        addq    $16,     %rdi       # increment current char
+        inc      %rdi               # increment current char
         jmp     print_loop
     
     end_loop:
@@ -177,7 +179,7 @@ print_char:         # write a single char that is stored in the least significan
     movq    $1,     %rax            # sycall codes
     movq    $1,     %rdi            # syscall codes
 
-    pushl   %bl                     # push a single byte to stack
+    pushq   %bl                     # push a single byte to stack
     addq    $2,     %rsp            # move the SP back up to the beginning of the char
     movq    %rsp,   %rdi            # move the adress of the starting char into rdi
     movq    $1,     %rdx            # write one byte
@@ -190,6 +192,54 @@ print_char:         # write a single char that is stored in the least significan
     jmp     epilogue_and_return
 
 
+#
+#   STRINGIFY_SIGNED_INT
+#   @params
+#       rdi -   a signed integer
+#       rsi -   the (n-1)th power of 10 for which the number should be returned (n = 0 yields sign)
+#
+#   @return
+#       rax -   char, (al) contains a single character
+#
+stringify_signed_int:
+    #   prologue
+    pushq   %rbp
+    movq    %rsp,   %rbp
+    
+    pushq   %rdi                    # save rdi 
+    pushq   %rdi                    # save rdi
+
+    shr     $63,    %rdi            # move msb to lsb
+    xor     %rax,   %rax            # clear rax
+    movb    %dil,   %al             # move sign bit to cl
+
+    popq    %rdi                    # restore rdi
+    popq    %rdi                    # restore rdi
+
+    cmp     $0,     %rsi            # check if argument is zero
+
+    # if rsi == 0 ? return sign : subtract one and return corresponding char
+    je      epilogue_and_return
+
+    # else
+    dec     %rsi
+
+
+    cmp     $1,     %al             # check if sign bit is one
+
+    # if sign == 0 ? jump positive : jump negative
+    jne     stringify_positive      # if sign zero -> int is positive
+
+    # else continue to negative
+    stringify_negative:
+        #   this is just the twos compliment math
+        dec     %rdi                            # subtract 1 from rdi
+        xorq    $0xFFFFFFFFFFFFFFFF,    %rdi    #xor with a string of ones will yield a flipped register
+    
+    stringify_positive:
+        #   rdi now contains the unsigned positive counterpart
+    
+    
 #
 #   ARG_COUNTER (not used)
 #   @params
@@ -212,7 +262,7 @@ arg_counter:        # run through the zero terminated string starting at the add
     movq    $0,     %r13
     movq    $0,     %rax
     counter_loop:
-        movl    (%rdi),     %r13b   # move next char to r13
+        movq    (%rdi),     %r13   # move next char to r13
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
@@ -246,12 +296,12 @@ arg_counter:        # run through the zero terminated string starting at the add
         je      increment_placeholder_counter
 
         # else increment and loop
-        addq    $16,     %rdi
+        inc      %rdi
         jmp     counter_loop
 
     increment_placeholder_counter:
         addq    $1,     %rax    # increment placeholder_counter
-        addq    $16,     %rdi    # increment current_char_index  
+        inc      %rdi    # increment current_char_index  
         jmp     counter_loop
     
     end_counter_loop:
