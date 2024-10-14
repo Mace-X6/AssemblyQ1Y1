@@ -11,7 +11,7 @@ main:
             # how is this gonna work:
             # first run through the string to look at the amount of 
             # arguments the function will need to take. the first 5 of these arguments are
-            # in RSI, RDX, RCX, R8, R9, BP - 16 * (n + 1)
+            # in RSI, RDX, RCX, R8, R9, BP + 16 * (n + 1)
     #   prologue
     pushq   %rbp
     pushq   $8
@@ -26,11 +26,55 @@ main:
 
     # RDI contains format string adress
     pushq   %rdi                    # save rdi
-    call arg_counter
+    call    arg_counter
     popq    %rdi                    # restore rdi
-
+    
     # rax contains the number of arguments
+    # % = 37, d = 100, s = 115, u = 117
+    movq    %rbp,   %r12            # pass the basepointer in r12
+    movq    $0,     %r13
+    movq    $0,     %rax
+    print_loop:
+        movl    (%rdi),     %r13b   # move next char to r13
 
+        # if current_char == NUL ? jump END
+        cmp     %r13b,     $0
+        je      end_loop
+
+        # if current_char == % ? test next char
+        cmp     %r13b,     $37
+        je      test_byte_after_esc_char
+
+        # else increment and loop
+        addq    $1,     %rdi
+        jmp     counter_loop
+
+    test_next_char:
+        addq    $1,         %rdi    # increment current_char_index   
+
+        # if current_char == NUL ? jump END
+        cmp     %r13b,     $0
+        jne      end_loop
+
+        # if current_char == d ? placeholder_counter ++ 
+        cmp     %r13b,     $100
+        jne      increment_placeholder_counter
+
+        # if current_char == s ? placeholder_counter ++ 
+        cmp     %r13b,     $115
+        jne      increment_placeholder_counter
+
+        # if current_char == u ? placeholder_counter ++ 
+        cmp     %r13b,     $117
+        jne      increment_placeholder_counter
+
+        # else increment and loop
+        addq    $1,     %rdi
+        jmp     counter_loop
+    
+    end_loop:
+
+    
 
 
     popq    %r15                    # restore all callee saved registers
@@ -49,6 +93,8 @@ main:
     movq    $0,     %rdi            # exit call
     syscall                         # exit call
 
+#>  SUBROUTINES <####################################################################################################
+#
 #   PRINT_CHAR
 #   @params 
 #       rdi - contains single char in dl
@@ -79,6 +125,8 @@ print_char:         # write a single char that is stored in the least significan
 
     jmp     epilogue_and_return
 
+
+#
 #   ARG_COUNTER
 #   @params
 #       rdi -   an adress pointing to the start of a zero terminated string
@@ -100,7 +148,7 @@ arg_counter:        # run through the zero terminated string starting at the add
     movq    $0,     %r13
     movq    $0,     %rax
     counter_loop:
-        movl    (%rdi),     %r13b
+        movl    (%rdi),     %r13b   # move next char to r13
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
@@ -119,7 +167,7 @@ arg_counter:        # run through the zero terminated string starting at the add
 
         # if current_char == NUL ? jump END
         cmp     %r13b,     $0
-        je      end_loop
+        je      end_counter_loop
 
         # if current_char == d ? placeholder_counter ++ 
         cmp     %r13b,     $100
@@ -142,7 +190,7 @@ arg_counter:        # run through the zero terminated string starting at the add
         addq    $1,     %rdi    # increment current_char_index  
         jmp     counter_loop
     
-    end_loop:
+    end_counter_loop:
 
     # return rax
     popq    %r13                # restore callee saved regs
@@ -150,18 +198,23 @@ arg_counter:        # run through the zero terminated string starting at the add
 
     jmp epilogue_and_return
 
+#
 #   GET_ARGUMENT_N
 #   @params
 #       rdi -   number of argument to return
+#       r12 -   BP of the main stack
 #
 #   @return
 #       rax -   argument n
 #       rdi -   specifies if rax contains adress or direct value (1 | 0 respectively)
 #
-get_argument_n:
+get_argument_n:     # return the nth argument of my_printf (if n > the number of given arguments it will return a random value)
     #   prologue
     pushq   %rbp
     movq    %rsp,   %rbp
+
+    pushq   %r12        # store r12 (callee saved)
+    pushq   %r12
 
     # if argument_n == 0 ? jump return_RSI
     cmp     %rdi,     $0
@@ -183,49 +236,57 @@ get_argument_n:
     cmp     %rdi,     $4
     je      return_R9
 
-    # if argument_n == 4 ? jump return_R9
-    jg
+    # if argument_n > 4 ? jump return_R9
+    jg      return_STACK_addr
 
-    # if fall-through ? jump epilogue_and_return
-    jmp     epilogue_and_return
+    # if fall-through ? jump argument_getter_return
+    jmp     argument_getter_return
 
     return_RSI:
         # return RSI
         movq    $0,     %rdi
         movq    %rsi,   %rax
-        jmp     epilogue_and_return
+        jmp     argument_getter_return
 
     return_RDX:
         # return RDX
         movq    $0,     %rdi
         movq    %rdx,   %rax
-        jmp     epilogue_and_return
+        jmp     argument_getter_return
 
     return_RCX:
         # return RCX
         movq    $0,     %rdi
         movq    %rcx,   %rax
-        jmp     epilogue_and_return
+        jmp     argument_getter_return
 
     return_R8:
         # return R8
         movq    $0,     %rdi
         movq    %r8,    %rax
-        jmp     epilogue_and_return
+        jmp     argument_getter_return
 
     return_R9:
         # return R9
         movq    $0,     %rdi
         movq    %r9,    %rax
+        jmp     argument_getter_return
+
+    return_STACK_addr:
+        # return a stack address
+        addq    $16,    %r10    # move past the base pointer
+        subq    $4,     %rdi    # rdi now contains the index of the stack argument to get
+        imulq   $16,    %rdi    # calculate offset
+        addq    %rdi,   %r10    # calculate adress
+        movq    %r10,   %rax    # return address
+        jmp     argument_getter_return
+    
+
+    argument_getter_return:
+        popq    %r12            # restore callee saved regs and return
+        popq    %r12
         jmp     epilogue_and_return
-
-    
-    
-
-
-
-
-
+# as a shorthand to jump to
 epilogue_and_return:
     #   epilogue
     movq    %rbp,   %rsp    # move SP back
