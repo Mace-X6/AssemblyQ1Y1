@@ -14,7 +14,7 @@ main:
     movq    %rsp,   %r15
     
     # pass args
-    movq    $42069, %rdi
+    movq    $11538942706234, %rdi
     movq    %rsp,   %rsi
 
     #reserve space for response
@@ -139,18 +139,19 @@ stringify_unsigned_int:
     #   r12 contains the length
 
     xorq    %r13,   %r13    # clear r13
-    xorq    %r8,   %r8      # clear r8, it will remember every 8th time a char is added because a push is then required
+    xorq    %r8,    %r8      # clear r8, it will remember every 8th time a char is added because a push is then required
     xorq    %r14,   %r14    # clear r14 (this will temporarily store the chars between pushes)
     movq    %r12,   %rax    # move the length of the string to the output
     
     get_char_loop:
+
+        shl     $8,     %r14    # make space for next char (on first iteration this does nothing but thats ok)
 
         popq    %r13            # r13 now contains a decimal digit
         # ascii 0 = 48, so adding 48 to r13 will yield the ascii code of digits 0 thru 9
         addq    $48,    %r13    # r13 now contains the ascii code
 
         movb    %r13b,  %r14b   # mov char to r14
-        shl     $8,     %r14    # make space for next char
         inc     %r8             # add 1 to r8
 
         cmp     $8,     %r8
@@ -161,8 +162,8 @@ stringify_unsigned_int:
         # i need to reorder the bytes so the endianess is reversed
         # %r10 holds the new reordered reg
         # %r11 the counter
-        movq    $0,     %r11
         xorq    %r10,   %r10        #clr r10
+        xorq    %r11,   %r11        #clr r11
         endianess_loop1:
             movb    %r14b,  %r10b       # move the last bit of r14 to the first bit of r11
 
@@ -177,11 +178,10 @@ stringify_unsigned_int:
         movq    %r10,   %r14
 
         movq    %r14,   (%rsi)  # write chars to %rsi
-        subq    $8,     %rsi    # subtract 8 from rsi so next push buffer will write to next 8 bytes
+        addq    $8,     %rsi    # subtract 8 from rsi so next push buffer will write to next 8 bytes
         xorq    %r8,    %r8     # set r8 back to zero
 
         after_push_buffer:
-
 
         dec     %r12
 
@@ -202,16 +202,16 @@ stringify_unsigned_int:
         mini_loop:              # so shift r14 left r9 times until 
             dec     %r9
             shl     $8,     %r14
-            cmp     $1,     %r9
+            cmp     $0,     %r9
             jne     mini_loop
 
         # i need to reorder the bytes so the endianess is reversed
         # %r10 holds the new reordered reg
         # %r11 the counter
-        movq    $0,     %r11
         xorq    %r10,   %r10        #clr r10
+        xorq    %r11,   %r11        #clr r11
         endianess_loop:
-            movb    %r14b,  %r10b       # move the last bit of r14 to the first bit of r11
+            movb    %r14b,  %r10b       # move the last byte of r14 to the first bit of r10
 
             inc     %r11                # increment r11
             cmp     $8,     %r11
