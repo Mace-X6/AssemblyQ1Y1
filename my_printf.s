@@ -8,10 +8,6 @@
 .global my_printf
 
 my_printf:
-            # how is this gonna work:
-            # first run through the string to look at the amount of 
-            # arguments the function will need to take. the first 5 of these arguments are
-            # in RSI, RDX, RCX, R8, R9, BP + 16 * (n + 1)
     #   prologue
     pushq   %rbp
     movq    %rsp,   %rbp
@@ -198,9 +194,16 @@ print_char:         # write a single char that is stored in the least significan
 #       rsi -   the power of 10 for which the number should be returned
 #
 #   @return
-#       rax -   char, (al) contains a single character
+#       rax -   char, (al) contains a single character (returns NUL char if the nth char is msb + 1)
 #
 stringify_unsigned_int:
+    # prologue
+    pushq   %rbp
+    movq    %rsp,   %rbp
+
+    movq    %rdi,   %rax
+    movq    %rdi,   %rdx
+
 #
 #   STRINGIFY_SIGNED_INT
 #   @params
