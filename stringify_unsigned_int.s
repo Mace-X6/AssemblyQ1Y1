@@ -28,13 +28,21 @@ main:
     xorq    %rdi,   %rdi    # clr rdi
     movb    (%r15), %dil    # arguments for print call
 
-    dec     %r15 # next char
+    pushq   %rax            # save rax because my print char fucks with it
+    pushq   %rax
+
+    call    print_char
+
+    popq    %rax            # reinstate rax
+    popq    %rax
+
+    inc     %r15            # next char
     inc     %r8
 
-    cmp     %rax,     %r8
+    cmp     %r8,    %rax
     # if r8 == rax exit loop
     # else
-    jne     loop
+    jg      loop
 
     addq    $24,    %rsp
     popq    %r15
@@ -149,6 +157,25 @@ stringify_unsigned_int:
         # if r8 == 8 ? push r14, clr r8 : continue
         jne     after_push_buffer
         # else mov r14 to spec addr,    clr r8
+
+        # i need to reorder the bytes so the endianess is reversed
+        # %r10 holds the new reordered reg
+        # %r11 the counter
+        movq    $0,     %r11
+        xorq    %r10,   %r10        #clr r10
+        endianess_loop1:
+            movb    %r14b,  %r10b       # move the last bit of r14 to the first bit of r11
+
+            inc     %r11                # increment r11
+            cmp     $8,     %r11
+            jge     end_endianess_loop1     
+            shr     $8,     %r14        # shift
+            shl     $8,     %r10        # shift
+            jmp     endianess_loop1
+
+        end_endianess_loop1:
+        movq    %r10,   %r14
+
         movq    %r14,   (%rsi)  # write chars to %rsi
         subq    $8,     %rsi    # subtract 8 from rsi so next push buffer will write to next 8 bytes
         xorq    %r8,    %r8     # set r8 back to zero
@@ -178,7 +205,24 @@ stringify_unsigned_int:
             cmp     $1,     %r9
             jne     mini_loop
 
-        
+        # i need to reorder the bytes so the endianess is reversed
+        # %r10 holds the new reordered reg
+        # %r11 the counter
+        movq    $0,     %r11
+        xorq    %r10,   %r10        #clr r10
+        endianess_loop:
+            movb    %r14b,  %r10b       # move the last bit of r14 to the first bit of r11
+
+            inc     %r11                # increment r11
+            cmp     $8,     %r11
+            jge     end_endianess_loop     
+            shr     $8,     %r14        # shift
+            shl     $8,     %r10        # shift
+            jmp     endianess_loop
+
+        end_endianess_loop:
+        movq    %r10,   %r14
+
         movq    %r14,   (%rsi)
         after_last_push:
     
