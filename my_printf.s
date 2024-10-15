@@ -32,8 +32,8 @@ my_printf:
 
     # RDI contains format string adress
     # % = 37, d = 100, s = 115, u = 117
-    xor     %r13,     %r13            # will hold currentchar
-    xor     %r14,     %r14            # will hold the number of arguments used
+    xorq    %r13,     %r13            # will hold currentchar
+    xorq    %r14,     %r14            # will hold the number of arguments used
     print_loop:
         movq    (%rdi),     %r13   # move next char to r13
 
@@ -48,7 +48,7 @@ my_printf:
         # else print increment and loop
         pushq   %rdi                # save rdi 
         pushq   %rdi                # twice to keep stack aligned
-        xor     %rdi,   %rdi        # clear rdi
+        xorq    %rdi,   %rdi        # clear rdi
         movb    %r13b,  %dl         # move char to rdi
         popq    %rdi                # restore rdi
         popq    %rdi                # restore rdi
@@ -75,7 +75,7 @@ my_printf:
             # rax contains address of string
 
             addq    $1,     %r14    # next placeholder wild hold next arg.
-            xor     %rdi,   %rdi    # clear rdi
+            xorq    %rdi,   %rdi    # clear rdi
             d_loop:
                 movq    (%rax),     %rdx
                 # if current_char == NUL ? jump END
@@ -113,7 +113,7 @@ my_printf:
             # handling it:
             pushq   %rdi                # save rdi 
             pushq   %rdi                # twice to keep stack aligned
-            xor     %rdi,   %rdi       # clear rdi
+            xorq    %rdi,   %rdi       # clear rdi
             movb    %r13b,  %dl         # move char to rdi
             call    print_char          # print the char in dl
             popq    %rdi                # restore rdi
@@ -126,7 +126,7 @@ my_printf:
         # else print whatever format specifier and loop
         pushq   %rdi                # save rdi 
         pushq   %rdi                # twice to keep stack aligned
-        xor     %rdi,   %rdi        # clear rdi
+        xorq    %rdi,   %rdi        # clear rdi
 
         movb    $37,  %dl           # move % to rdi
         call    print_char          # print the char in dl
@@ -174,14 +174,13 @@ print_char:         # write a single char that is stored in the least significan
     pushq   %rbx                    # save rbx bcs callee saved
     pushq   %rbx
 
-    xor     %rbx,   %rbx            # zero out rcx
-    movq    %rdi,   %rbx            # move character to rcx
+    xorq    %rbx,   %rbx            # zero out rcx
+    movb    %dil,   %bl             # move character to rcx
     movq    $1,     %rax            # sycall codes
     movq    $1,     %rdi            # syscall codes
 
-    pushq   %bl                     # push a single byte to stack
-    addq    $2,     %rsp            # move the SP back up to the beginning of the char
-    movq    %rsp,   %rdi            # move the adress of the starting char into rdi
+    pushq   %rbx                    # push char to stack to be able to pass mem addr
+    movq    %rsp,   %rsi            # move the adress of the starting char into rdi
     movq    $1,     %rdx            # write one byte
 
     syscall
@@ -192,6 +191,16 @@ print_char:         # write a single char that is stored in the least significan
     jmp     epilogue_and_return
 
 
+#
+#   STRINGIFY_UNSIGNED_INT
+#   @params
+#       rdi -   an unsigned integer
+#       rsi -   the power of 10 for which the number should be returned
+#
+#   @return
+#       rax -   char, (al) contains a single character
+#
+stringify_unsigned_int:
 #
 #   STRINGIFY_SIGNED_INT
 #   @params
@@ -210,7 +219,7 @@ stringify_signed_int:
     pushq   %rdi                    # save rdi
 
     shr     $63,    %rdi            # move msb to lsb
-    xor     %rax,   %rax            # clear rax
+    xorq    %rax,   %rax            # clear rax
     movb    %dil,   %al             # move sign bit to cl
 
     popq    %rdi                    # restore rdi
@@ -239,6 +248,9 @@ stringify_signed_int:
     stringify_positive:
         #   rdi now contains the unsigned positive counterpart
     
+    # find the nth decimal digit based on rdi
+
+    jmp epilogue_and_return
     
 #
 #   ARG_COUNTER (not used)
