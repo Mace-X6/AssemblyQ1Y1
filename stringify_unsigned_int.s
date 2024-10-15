@@ -14,13 +14,13 @@ main:
     movq    %rsp,   %r15
     
     # pass args
-    movq    $11538942706234, %rdi
+    movq    $11538942734, %rdi
     movq    %rsp,   %rsi
 
     #reserve space for response
     subq    $24,    %rsp
 
-    call    stringify_unsigned_int
+    call    stringify_signed_int
 
     xorq    %r8,    %r8 # will hold amount of chars written
     # r15 is the starting pos
@@ -236,3 +236,62 @@ stringify_unsigned_int:
     popq    %rbp
 
     ret        
+#
+#   STRINGIFY_SIGNED_INT
+#   @params
+#       rdi -   a signed integer
+#       rsi -   the starting address of a memory address on stack 24 bytes can be written to
+#
+#   @return
+#       rax -   amount of bytes in the string
+#
+stringify_signed_int:
+    #   prologue
+    pushq   %rbp
+    movq    %rsp,   %rbp
+    
+    pushq   %rdi                    # save rdi 
+    pushq   %rdi                    # save rdi
+
+    shr     $63,    %rdi            # move msb to lsb
+    xorq    %rax,   %rax            # clear rax
+    movb    %dil,   %al             # move sign bit to cl
+
+    popq    %rdi                    # restore rdi
+    popq    %rdi                    # restore rdi
+
+    cmp     $1,     %al             # check if sign bit is one
+
+    # if sign == 0 ? jump positive : jump negative
+    jne     stringify_positive      # if sign zero -> int is positive
+
+    # else continue to negative
+    stringify_negative:
+        #   this is just the twos compliment math
+        dec     %rdi                            # subtract 1 from rdi
+        xorq    $0xFFFFFFFFFFFFFFFF,    %rdi    #xor with a string of ones will yield a flipped register
+
+        # now put the negative sign on the reserved stack space and add one to the 
+        movb    $0x2D,  (%rsi)
+        addq    $1,     %rsi
+
+        call stringify_unsigned_int
+
+        addq    $1,     %rax        # rax contains the length of the string because of S_U_I but we need to add one because of the - char
+        
+        jmp     stringify_signed_epilogue
+
+    stringify_positive:
+        #   rdi now contains the unsigned positive counterpart
+        #   rsi still contains starting addr
+
+        call    stringify_unsigned_int
+
+        # rax contains the length of the string written to the stack because thats what sui returns
+
+        jmp     stringify_signed_epilogue
+
+    stringify_signed_epilogue:
+    movq    %rbp,   %rsp    # move SP back
+    popq    %rbp            # restore BP
+    ret                     # return
