@@ -7,7 +7,6 @@ arg1:   .asciz "Piet"
 .global main
 main:
 #prolog
-br:
     pushq   %rbp
     movq    %rsp,   %rbp
 
@@ -101,7 +100,6 @@ my_printf:
 
             #save r15
             pushq   %r15
-            pushq   %r15
 
             # save sp
             movq    %rsp,   %r15
@@ -146,7 +144,6 @@ my_printf:
 
             addq    $24,    %rsp
             popq    %r15            # restore everything
-            popq    %r15
 
             # okay since i pushed all that junk i restore everything here (i hope i dont run out of stack)
             popq   %r11
