@@ -1,17 +1,27 @@
 .data
-string: .asciz "%d"
+string: .asciz "%d %d %d %d %d %d %d %d"
 .bss 
     stored_string: .skip 1024
 .text
 
-.global main
+.global my_printf
 main:
 #prolog
     pushq   %rbp
     movq    %rsp,   %rbp
 
+    #   1, 2, 3, 4, 5, 6, 7, 8
     movq    $string,  %rdi
-    movq    $42,    %rsi
+    movq    $1,    %rsi
+    movq    $2,    %rdx
+    movq    $3,    %rcx
+    movq    $4,    %r8
+    movq    $5,    %r9 
+
+    pushq   $8
+    pushq   $7
+    pushq   $6
+    pushq   $0
 
     call my_printf
 
@@ -773,8 +783,8 @@ get_argument_n:     # return the nth argument of my_printf (if n > the number of
     return_STACK_item:
         # return a stack address
         addq    $16,    %r8     # step past return addr and saved bp
-        subq    $3,     %rdi    # rdi is now equal to which item needs to be taken from the stack (1 indexed)
-        imulq   $16,    %rdi    # calculate the offset this equates to
+        subq    $5,     %rdi    # rdi is now equal to which item needs to be taken from the stack
+        imulq   $8,    %rdi     # calculate the offset this equates to
         movq    (%r8,   %rdi),  %rax    # move the item to rax
 
         jmp     epilogue_and_return
