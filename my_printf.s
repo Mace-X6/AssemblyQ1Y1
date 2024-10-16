@@ -45,10 +45,10 @@ my_printf:
 
     # RDI contains format string adress
     # % = 37, d = 100, s = 115, u = 117
-    xorq    %r13,     %r13            # will hold currentchar
     xorq    %r14,     %r14            # will hold the number of arguments used
     xorq    %rbx,     %rbx            # will hold the string length
     print_loop:
+        xorq    %r13,     %r13            # will hold currentchar
         movb    (%rdi),     %r13b     # move next char to r13
 
         # if current_char == NUL ? jump END
@@ -139,11 +139,12 @@ my_printf:
             pushq   %rdi                # save rdi 
             pushq   %rsi                # rsi
             pushq   %rdx
+            pushq   %r8
+            pushq   %r8
 
             xorq    %rdi,   %rdi        # clear rdi
             movb    (%r15), %dil        # arguments for print call
-
-            xorq    %rsi,   %rsi        # clear rsi
+          
             movq    %rbx,   %rdx         # pass current str length
             movq    $stored_string, %rsi # pass starting addr.
 
@@ -151,6 +152,8 @@ my_printf:
 
             movq    %rax,   %rbx         # store new string length
 
+            popq    %r8
+            popq    %r8
             popq    %rdx
             popq    %rsi                # restore rsi
             popq    %rdi                # restore rdi
@@ -275,7 +278,7 @@ my_printf:
             movb    (%r15), %dil    # arguments for print call
 
             pushq   %rax            # save rax because my print char fucks with it
-            pushq   %rax
+            pushq   %r8
 
             
             movq    %rbx,   %rdx         # pass current str length
@@ -283,7 +286,8 @@ my_printf:
             call    save_char
             movq    %rax,   %rbx         # store new len
 
-            popq    %rax            # reinstate rax
+
+            popq    %r8            # reinstate rax & r8
             popq    %rax
 
             inc     %r15            # next char
