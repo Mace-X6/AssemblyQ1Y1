@@ -1,7 +1,8 @@
 .data
 string: .asciz "My name is %s. I think I'll get a %d for my exam. What does %r do? And %%?\n"
 arg1:   .asciz "Piet"
-
+.bss 
+    stored_string: .skip 1024
 .text
 
 .global main
@@ -48,6 +49,7 @@ my_printf:
     # % = 37, d = 100, s = 115, u = 117
     xorq    %r13,     %r13            # will hold currentchar
     xorq    %r14,     %r14            # will hold the number of arguments used
+    xorq    %rbx,     %rbx            # will hold the string length
     print_loop:
         movb    (%rdi),     %r13b     # move next char to r13
 
@@ -61,14 +63,24 @@ my_printf:
 
         # else print increment and loop
         pushq   %rdi                # save rdi 
-        pushq   %rdi                # twice to keep stack aligned
+        pushq   %rsi                # rsi
+        pushq   %rdx
+        pushq   %rdx
 
         xorq    %rdi,   %rdi        # clear rdi
+        xorq    %rsi,   %rsi        # clear rsi
+
+        movq    %rbx,   %rdx         # pass current str length
         movb    %r13b,  %dil         # move char to rdi
+        movq    $stored_string, %rsi # pass starting addr.
 
-        call print_char
+        call save_char
 
-        popq    %rdi                # restore rdi
+        movq    %rax,   %rbx         # store new string length
+
+        popq    %rdx
+        popq    %rdx
+        popq    %rsi                # restore rsi
         popq    %rdi                # restore rdi
 
         inc     %rdi                # increment char
@@ -116,23 +128,36 @@ my_printf:
             movq    %rsp,   %rsi
 
             #reserve space for response
-            subq    $24,    %rsp
+            subq    $32,    %rsp
 
             call    stringify_signed_int
 
             xorq    %r8,    %r8 # will hold amount of chars written
             # r15 is the starting pos
             loop1:
-            xorq    %rdi,   %rdi    # clr rdi
-            movb    (%r15), %dil    # arguments for print call
 
             pushq   %rax            # save rax because my print char fucks with it
-            pushq   %rax
 
-            call    print_char
+            pushq   %rdi                # save rdi 
+            pushq   %rsi                # rsi
+            pushq   %rdx
+
+            movb    (%r15), %dil    # arguments for print call
+            xorq    %rdi,   %rdi        # clear rdi
+            xorq    %rsi,   %rsi        # clear rsi
+
+            movq    %rbx,   %rdx         # pass current str length
+            movq    $stored_string, %rsi # pass starting addr.
+
+            call    save_char
+
+            movq    %rax,   %rbx         # store new string length
+
+            popq    %rdx
+            popq    %rsi                # restore rsi
+            popq    %rdi                # restore rdi
 
             popq    %rax            # reinstate rax
-            popq    %rax
 
             inc     %r15            # next char
             inc     %r8
@@ -142,7 +167,7 @@ my_printf:
             # else
             jg      loop1
 
-            addq    $24,    %rsp
+            addq    $32,    %rsp
             popq    %r15            # restore everything
 
             # okay since i pushed all that junk i restore everything here (i hope i dont run out of stack)
@@ -185,7 +210,11 @@ my_printf:
                 pushq   %rax        #save rax       
                 pushq   %rax        #save rax   
                 
-                call    print_char
+                
+                movq    %rbx,   %rdx         # pass current str length
+                movq    $stored_string, %rsi # pass starting addr.
+                call    save_char
+                movq    %rax,   %rbx         # store new len
 
                 popq    %rax        #restore rax
                 popq    %rax        #restore rax
@@ -221,7 +250,6 @@ my_printf:
 
             #save r15
             pushq   %r15
-            pushq   %r15
 
             # save sp
             movq    %rsp,   %r15
@@ -238,7 +266,7 @@ my_printf:
             movq    %rsp,   %rsi
 
             #reserve space for response
-            subq    $24,    %rsp
+            subq    $32,    %rsp
 
             call    stringify_unsigned_int
 
@@ -251,7 +279,11 @@ my_printf:
             pushq   %rax            # save rax because my print char fucks with it
             pushq   %rax
 
-            call    print_char
+            
+            movq    %rbx,   %rdx         # pass current str length
+            movq    $stored_string, %rsi # pass starting addr.
+            call    save_char
+            movq    %rax,   %rbx         # store new len
 
             popq    %rax            # reinstate rax
             popq    %rax
@@ -264,9 +296,8 @@ my_printf:
             # else
             jg      loop
 
-            addq    $24,    %rsp
+            addq    $32,    %rsp
             popq    %r15            # restore everything
-            popq    %r15
 
             # okay since i pushed all that junk i restore everything here (i hope i dont run out of stack)
             popq   %r11
@@ -290,9 +321,17 @@ my_printf:
             # handling it:
             pushq   %rdi                # save rdi 
             pushq   %rdi                # twice to keep stack aligned
+
             xorq    %rdi,   %rdi       # clear rdi
             movb    %r13b,  %dil        # move char to rdi
-            call    print_char          # print the char in dl
+
+            movq    %rbx,   %rdx         # pass current str length
+            movq    $stored_string, %rsi # pass starting addr.
+
+            call    save_char          # print the char in dil
+
+            movq    %rax,   %rbx       # store new len
+
             popq    %rdi                # restore rdi
             popq    %rdi                # restore rdi
             
@@ -306,10 +345,16 @@ my_printf:
         xorq    %rdi,   %rdi        # clear rdi
 
         movb    $37,  %dil           # move % to rdi
-        call    print_char          # print the char in dl
+        movq    %rbx,   %rdx         # pass current str length
+        movq    $stored_string, %rsi # pass starting addr.
+        call    save_char          # print the char in dil
+        movq    %rax,   %rbx       # store new len
 
         movb    %r13b,  %dil         # move char to rdi
-        call    print_char          # print the char in dl
+        movq    %rbx,   %rdx         # pass current str length
+        movq    $stored_string, %rsi # pass starting addr.
+        call    save_char          # print the char in dil
+        movq    %rax,   %rbx       # store new len
 
         popq    %rdi                # restore rdi
         popq    %rdi                # restore rdi
@@ -317,6 +362,13 @@ my_printf:
         jmp     print_loop
     
     end_loop:
+
+    movq    $1,              %rax   #syscall write
+    movq    $1,              %rdi   # syscall sdout write
+    movq    $stored_string,  %rsi   # addr of first char to write
+    movq    %rbx,            %rdx   # length of string
+
+    syscall
 
     popq    %r15                    # restore all callee saved registers
     popq    %r15                    # restore all callee saved registers
@@ -335,34 +387,30 @@ my_printf:
 
 #>  SUBROUTINES <####################################################################################################
 #
-#   PRINT_CHAR
+#   save_char
 #   @params 
 #       rdi - contains single char in dil
+#       rsi - the start addr of the string
+#       rdx - current size of the string
 #
-print_char:         # write a single char that is stored in the least significant byte of rdi
+#   @return
+#       rax -   size of the string
+#
+save_char:         # write a single char that is stored in the least significant byte of rdi
     
     #   prologue
     pushq   %rbp
     movq    %rsp,   %rbp
 
-    pushq   %rbx                    # save rbx bcs callee saved
-    pushq   %rbx
+    addq    %rdx,   %rsi
+    inc     %rsi
 
-    xorq    %rbx,   %rbx            # zero out rcx
-    movb    %dil,   %bl             # move character to rcx
-    movq    $1,     %rax            # sycall codes
-    movq    $1,     %rdi            # syscall codes
+    movb    %dil,   (%rsi)
 
-    pushq   %rbx                    # push char to stack to be able to pass mem addr
-    movq    %rsp,   %rsi            # move the adress of the starting char into rdi
-    movq    $1,     %rdx            # write one byte
+    movq    %rdx,   %rax
+    inc     %rax
 
-    syscall
-
-    popq    %rbx                    # restore callee saved reg
-    popq    %rbx                    #
-
-        #   epilogue
+    #   epilogue
     movq    %rbp,   %rsp    # move SP back
     popq    %rbp            # restore BP
     ret                     # return
