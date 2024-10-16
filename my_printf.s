@@ -1,6 +1,5 @@
 .data
-string: .asciz "My name is %s. I think I'll get a %u for my exam. What does %r do? And %%?\n"
-arg1:   .asciz "Piet"
+string: .asciz "%d"
 .bss 
     stored_string: .skip 1024
 .text
@@ -12,8 +11,7 @@ main:
     movq    %rsp,   %rbp
 
     movq    $string,  %rdi
-    movq    $arg1,    %rsi
-    movq    $42,     %rdx
+    movq    $42,    %rsi
 
     call my_printf
 
@@ -200,11 +198,11 @@ my_printf:
 
             inc     %r14            # next placeholder wild hold next arg.
             xorq    %rdi,   %rdi    # clear rdi
-            d_loop:
+            s_loop:
                 movb    (%rax),     %dil
                 # if current_char == NUL ? jump END
                 cmp     $0,     %dil
-                je      d_loop_end
+                je      s_loop_end
 
                 # else print char increment and loop
                 pushq   %rax        #save rax       
@@ -220,9 +218,9 @@ my_printf:
                 popq    %rax        #restore rax
                 
                 addq    $1,     %rax
-                jmp     d_loop
+                jmp     s_loop
 
-            d_loop_end:
+            s_loop_end:
             popq    %rax            # restore values 
             popq    %rdi            # restore values
             inc     %rdi            # increment char
@@ -403,7 +401,6 @@ save_char:         # write a single char that is stored in the least significant
     movq    %rsp,   %rbp
 
     addq    %rdx,   %rsi
-    inc     %rsi
 
     movb    %dil,   (%rsi)
 
