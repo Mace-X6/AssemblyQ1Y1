@@ -1,11 +1,30 @@
-.text
 .data
-string: .asciz "My name is %s. I think I’ll get a %u for my exam. What does %r do? And %%?"
+string: .asciz "My name is %s. I think I'll get a %d for my exam. What does %r do? And %%?\n"
+arg1:   .asciz "Piet"
 
+.text
 
 .global main
 main:
+#prolog
+br:
+    pushq   %rbp
+    movq    %rsp,   %rbp
 
+    movq    $string,  %rdi
+    movq    $arg1,    %rsi
+    movq    $-42,     %rdx
+
+    call my_printf
+
+#epilog
+    movq    %rbp,   %rsp
+    popq    %rbp
+
+#exit
+    movq    $60,    %rax            # exit call
+    movq    $0,     %rdi            # exit call
+    syscall                         # exit call
 
 my_printf:
     #   prologue
@@ -31,21 +50,25 @@ my_printf:
     xorq    %r13,     %r13            # will hold currentchar
     xorq    %r14,     %r14            # will hold the number of arguments used
     print_loop:
-        movq    (%rdi),     %r13   # move next char to r13
+        movb    (%rdi),     %r13b     # move next char to r13
 
         # if current_char == NUL ? jump END
-        cmp     %r13b,     $0
+        cmp     $0,       %r13
         je      end_loop
 
         # if current_char == % ? test next char
-        cmp     %r13b,     $37
+        cmp     $37,      %r13
         je      test_next_char
 
         # else print increment and loop
         pushq   %rdi                # save rdi 
         pushq   %rdi                # twice to keep stack aligned
+
         xorq    %rdi,   %rdi        # clear rdi
-        movb    %r13b,  %dl         # move char to rdi
+        movb    %r13b,  %dil         # move char to rdi
+
+        call print_char
+
         popq    %rdi                # restore rdi
         popq    %rdi                # restore rdi
 
@@ -53,49 +76,17 @@ my_printf:
         jmp     print_loop
 
     test_next_char:     # if this is jumped to, the prev char was %
-        inc     %rdi    # increment current_char_index   
+        inc     %rdi    # increment current_char_index
+        movb    (%rdi),     %r13b     # move next char to r13
+
 
         # if current_char == NUL ? jump END
-        cmp     %r13b,     $0
+        cmp     $0,       %r13b     
         je      end_loop
 
         # if current_char == d ? handle it : jump to not_d
-        cmp     %r13b,     $100
+        cmp     $100,     %r13b
         jne      not_d
-            pushq   %rdi            # save rdi
-            pushq   %rax
-
-            movq    %r14,   %rdi    # passing arg number to subroutine
-            
-            call get_argument_n
-            # rax contains address of string
-
-            addq    $1,     %r14    # next placeholder wild hold next arg.
-            xorq    %rdi,   %rdi    # clear rdi
-            d_loop:
-                movq    (%rax),     %rdx
-                # if current_char == NUL ? jump END
-                cmp     %dl,    $0
-                je      d_loop_end
-
-                # else print char increment and loop
-                call    print_char
-                addq    $1,     %rax
-                jmp     d_loop
-
-            d_loop_end:
-            popq    %rax            # restore values 
-            popq    %rdi            # restore values
-            inc     %rdi            # increment char
-            inc     %r14            # remeber the number of arguments we're on
-            jmp     print_loop      # loop
-        
-        not_d:
-
-        # if current_char == s ? handle it : jump to not_s
-        cmp     %r13b,     $115
-        jne      not_s
-
             pushq   %rax
             pushq   %rcx 
             pushq   %rdx 
@@ -118,6 +109,8 @@ my_printf:
             movq    %r14,   %rdi    # passing arg number to subroutine
             
             call get_argument_n
+
+            inc     %r14            # next placeholder will use next arg
             # rax contains address of string
 
             # pass args
@@ -131,7 +124,7 @@ my_printf:
 
             xorq    %r8,    %r8 # will hold amount of chars written
             # r15 is the starting pos
-            loop:
+            loop1:
             xorq    %rdi,   %rdi    # clr rdi
             movb    (%r15), %dil    # arguments for print call
 
@@ -149,31 +142,72 @@ my_printf:
             cmp     %r8,    %rax
             # if r8 == rax exit loop
             # else
-            jg      loop
+            jg      loop1
 
             addq    $24,    %rsp
             popq    %r15            # restore everything
             popq    %r15
 
             # okay since i pushed all that junk i restore everything here (i hope i dont run out of stack)
-            pushq   %r11
-            pushq   %r10
-            pushq   %r9
-            pushq   %r8
-            pushq   %rsi 
-            pushq   %rdi 
-            pushq   %rdx 
-            pushq   %rcx 
-            pushq   %rax
+            popq   %r11
+            popq   %r10
+            popq   %r9
+            popq   %r8
+            popq   %rsi 
+            popq   %rdi 
+            popq   %rdx 
+            popq   %rcx 
+            popq   %rax
             
             inc     %rdi                # increment current_char_index
             jmp     print_loop          # loop
 
+        not_d:
+
+        # if current_char == s ? handle it : jump to not_s
+        cmp      $115,     %r13     
+        jne      not_s
+            
+            pushq   %rdi            # save rdi
+            pushq   %rax
+
+            movq    %r14,   %rdi    # passing arg number to subroutine
+            
+            call get_argument_n
+            # rax contains address of string
+
+            inc     %r14            # next placeholder wild hold next arg.
+            xorq    %rdi,   %rdi    # clear rdi
+            d_loop:
+                movb    (%rax),     %dil
+                # if current_char == NUL ? jump END
+                cmp     $0,     %dil
+                je      d_loop_end
+
+                # else print char increment and loop
+                pushq   %rax        #save rax       
+                pushq   %rax        #save rax   
+                
+                call    print_char
+
+                popq    %rax        #restore rax
+                popq    %rax        #restore rax
+                
+                addq    $1,     %rax
+                jmp     d_loop
+
+            d_loop_end:
+            popq    %rax            # restore values 
+            popq    %rdi            # restore values
+            inc     %rdi            # increment char
+            jmp     print_loop      # loop
+        
+            
         not_s:
     
 
         # if current_char == u ? handle it : jump to not_u
-        cmp     %r13b,     $117
+        cmp      $117,      %r13     
         jne      not_u
 
             pushq   %rax
@@ -198,10 +232,12 @@ my_printf:
             movq    %r14,   %rdi    # passing arg number to subroutine
             
             call get_argument_n
+            
+            inc     %r14            # next placeholder will use next arg
             # rax contains address of string
 
             # pass args
-            movq    %rax, %rdi
+            movq    %rax,   %rdi
             movq    %rsp,   %rsi
 
             #reserve space for response
@@ -236,15 +272,15 @@ my_printf:
             popq    %r15
 
             # okay since i pushed all that junk i restore everything here (i hope i dont run out of stack)
-            pushq   %r11
-            pushq   %r10
-            pushq   %r9
-            pushq   %r8
-            pushq   %rsi 
-            pushq   %rdi 
-            pushq   %rdx 
-            pushq   %rcx 
-            pushq   %rax
+            popq   %r11
+            popq   %r10
+            popq   %r9
+            popq   %r8
+            popq   %rsi 
+            popq   %rdi 
+            popq   %rdx 
+            popq   %rcx 
+            popq   %rax
             
             inc     %rdi                # increment current_char_index
             jmp     print_loop          # loop
@@ -252,13 +288,13 @@ my_printf:
         not_u:
 
         # if current_char == % ? handle it : jump to not_percent
-        cmp     %r13b,     $37
+        cmp     $37,        %r13      
         jne      not_percent
             # handling it:
             pushq   %rdi                # save rdi 
             pushq   %rdi                # twice to keep stack aligned
             xorq    %rdi,   %rdi       # clear rdi
-            movb    %r13b,  %dl         # move char to rdi
+            movb    %r13b,  %dil        # move char to rdi
             call    print_char          # print the char in dl
             popq    %rdi                # restore rdi
             popq    %rdi                # restore rdi
@@ -272,15 +308,15 @@ my_printf:
         pushq   %rdi                # twice to keep stack aligned
         xorq    %rdi,   %rdi        # clear rdi
 
-        movb    $37,  %dl           # move % to rdi
+        movb    $37,  %dil           # move % to rdi
         call    print_char          # print the char in dl
 
-        movb    %r13b,  %dl         # move char to rdi
+        movb    %r13b,  %dil         # move char to rdi
         call    print_char          # print the char in dl
 
         popq    %rdi                # restore rdi
         popq    %rdi                # restore rdi
-        inc      %rdi               # increment current char
+        inc     %rdi               # increment current char
         jmp     print_loop
     
     end_loop:
@@ -296,15 +332,15 @@ my_printf:
     movq    %rbp,   %rsp
     popq    %rbp
 
-    movq    $60,    %rax            # exit call
-    movq    $0,     %rdi            # exit call
-    syscall                         # exit call
+    ret # returns all of my_printf
+
+
 
 #>  SUBROUTINES <####################################################################################################
 #
 #   PRINT_CHAR
 #   @params 
-#       rdi - contains single char in dl
+#       rdi - contains single char in dil
 #
 print_char:         # write a single char that is stored in the least significant byte of rdi
     
@@ -357,7 +393,7 @@ stringify_unsigned_int:
     xorq    %r12,   %r12    # clear r12
 
     # if number == 0 ? push 0, skip loop : do loop
-    cmp     $0,     %rdi    
+    cmp      $0,     %rdi    
     jne      BCD_loop
 
     pushq   $0
@@ -366,6 +402,8 @@ stringify_unsigned_int:
 
     BCD_loop:
         xorq    %rcx,   %rcx    #clr rcx
+        xorq    %rax,   %rax    #clr rax
+
         movq    $10,    %rcx    # set rcx equal to ten
         inc     %r12            # increment the length of the number
         #rdi contains number
@@ -568,11 +606,11 @@ arg_counter:        # run through the zero terminated string starting at the add
         movq    (%rdi),     %r13   # move next char to r13
 
         # if current_char == NUL ? jump END
-        cmp     %r13b,     $0
+        cmp     $0,     %r13b     
         je      end_loop
 
         # if current_char == % ? test next char
-        cmp     %r13b,     $37
+        cmp     $37,    %r13b     
         je      test_byte_after_esc_char
 
         # else increment and loop
@@ -583,19 +621,19 @@ arg_counter:        # run through the zero terminated string starting at the add
         addq    $16,        %rdi    # increment current_char_index   
 
         # if current_char == NUL ? jump END
-        cmp     %r13b,     $0
+        cmp     $0,         %r13b
         je      end_counter_loop
 
         # if current_char == d ? placeholder_counter ++ 
-        cmp     %r13b,     $100
+        cmp     $100,       %r13b     
         je      increment_placeholder_counter
 
         # if current_char == s ? placeholder_counter ++ 
-        cmp     %r13b,     $115
+        cmp     $115,       %r13b     
         je      increment_placeholder_counter
 
         # if current_char == u ? placeholder_counter ++ 
-        cmp     %r13b,     $117
+        cmp     $117,       %r13b     
         je      increment_placeholder_counter
 
         # else increment and loop
@@ -633,26 +671,26 @@ get_argument_n:     # return the nth argument of my_printf (if n > the number of
     movq    %rsp,   %rbp
 
     # if argument_n == 0 ? jump return_RSI
-    cmp     %rdi,     $0
+    cmp     $0,     %rdi     
     je      return_RSI
 
     # if argument_n == 1 ? jump return_RDX
-    cmp     %rdi,     $1
+    cmp     $1,     %rdi     
     je      return_RDX
 
     # if argument_n == 2 ? jump return_RCX
-    cmp     %rdi,     $2
+    cmp     $2,     %rdi     
     je      return_RCX
 
     # if argument_n == 3 ? jump return_R8
-    cmp     %rdi,     $3
+    cmp     $3,     %rdi     
     je      return_R8
 
     # if argument_n == 4 ? jump return_R9
-    cmp     %rdi,     $4
+    cmp     $4,     %rdi     
     je      return_R9
 
-    # if argument_n > 4 ? jump return_R9
+    # if argument_n > 4 ? jump return_STACK_item
     jg      return_STACK_item
 
     # if fall-through ? epilogue and return
