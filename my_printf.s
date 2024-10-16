@@ -1,5 +1,5 @@
 .data
-string: .asciz "My name is %s. I think I'll get a %d for my exam. What does %r do? And %%?\n"
+string: .asciz "My name is %s. I think I'll get a %u for my exam. What does %r do? And %%?\n"
 arg1:   .asciz "Piet"
 .bss 
     stored_string: .skip 1024
@@ -13,7 +13,7 @@ main:
 
     movq    $string,  %rdi
     movq    $arg1,    %rsi
-    movq    $-42,     %rdx
+    movq    $42,     %rdx
 
     call my_printf
 
@@ -142,10 +142,10 @@ my_printf:
             pushq   %rsi                # rsi
             pushq   %rdx
 
-            movb    (%r15), %dil    # arguments for print call
             xorq    %rdi,   %rdi        # clear rdi
-            xorq    %rsi,   %rsi        # clear rsi
+            movb    (%r15), %dil        # arguments for print call
 
+            xorq    %rsi,   %rsi        # clear rsi
             movq    %rbx,   %rdx         # pass current str length
             movq    $stored_string, %rsi # pass starting addr.
 
